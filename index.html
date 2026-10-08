@@ -925,6 +925,8 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
         if (badge) { badge.innerHTML = '✎ Edit Mode ON &nbsp;<button onclick="setEditMode(false)" style="font-size:10px;padding:2px 8px;border-radius:10px;border:1px solid #002D72;background:#fff;color:#002D72;cursor:pointer;font-weight:700">Exit</button>'; badge.style.background='#e8eef7'; badge.style.color='#002D72'; }
         const toggleBtn = document.getElementById('edit-mode-toggle');
         if (toggleBtn) { toggleBtn.textContent = '🔒 Exit Edit Mode'; toggleBtn.style.background='#e8eef7'; toggleBtn.style.color='#002D72'; toggleBtn.style.borderColor='#002D72'; }
+        const cloudBtn = document.getElementById('cloud-save-btn');
+        if (cloudBtn) cloudBtn.style.display = '';
       } else {
         editorEls.forEach(el => { el.disabled = true; el.style.opacity = '.38'; el.style.pointerEvents = 'none'; });
         document.querySelectorAll('input:not(#edit-mode-pw-input), textarea, select').forEach(el => { el.disabled = true; });
@@ -932,6 +934,8 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
         if (badge) { badge.innerHTML = '👁 View Only'; badge.style.background='#e6f3ed'; badge.style.color='#007749'; }
         const toggleBtn = document.getElementById('edit-mode-toggle');
         if (toggleBtn) { toggleBtn.textContent = '✎ Enable Editing'; toggleBtn.style.background='var(--blue-pale)'; toggleBtn.style.color='var(--blue)'; toggleBtn.style.borderColor='var(--blue-light)'; }
+        const cloudBtn2 = document.getElementById('cloud-save-btn');
+        if (cloudBtn2) cloudBtn2.style.display = 'none';
       }
       // Re-render so edit/delete buttons appear or disappear
       if (typeof renderLog === 'function') renderLog();
@@ -1093,6 +1097,7 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
     <div class="header-right" style="display:flex;align-items:center;gap:8px">
       <span id="sync-badge" style="display:none"></span>
       <button id="refresh-btn" onclick="manualPullFromCloud(this)" style="display:none;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;border:1px solid #b8cce8;background:#e8eef7;color:#002D72;cursor:pointer" title="Refresh data from cloud">↻ Refresh</button>
+      <button id="cloud-save-btn" onclick="cloudSaveWithFeedback(this)" style="display:none;font-size:12px;font-weight:700;padding:5px 12px;border-radius:20px;border:1px solid #007749;background:#e6f3ed;color:#007749;cursor:pointer">☁ Save to Cloud</button>
       <button id="edit-mode-toggle" class="btn btn-sm" onclick="isEditMode ? setEditMode(false) : showEditModePrompt()" style="font-size:12px;padding:5px 12px;background:var(--blue-pale);color:var(--blue);border-color:var(--blue-light)">✎ Enable Editing</button>
       <button class="btn btn-sm editor-only" onclick="showDataModal()" title="Export or import data" style="display:none;font-size:12px;padding:5px 12px;background:#f5f5f5;color:var(--text-secondary);border-color:var(--border)">⇄ Data Backup</button>
       <span id="edit-mode-badge" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;padding:5px 12px;border-radius:20px;background:#e6f3ed;color:#007749;box-shadow:0 2px 8px rgba(0,0,0,.12)">👁 View Only</span>
@@ -1864,6 +1869,26 @@ function _applyCloudData(data) {
 window._loadSheetData = function() {
   loadFromSheet(function(data) {
     _applyCloudData(data);
+  });
+};
+
+window.cloudSaveWithFeedback = function(btn) {
+  const orig = btn.textContent;
+  btn.textContent = '⟳ Saving…';
+  btn.disabled = true;
+  fetch('https://epac-sync.christina-m-kreiger.workers.dev', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ meetings: window._epacMeetings(), projects: window._epacProjects() })
+  })
+  .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+  .then(() => {
+    btn.textContent = '✓ Saved!';
+    setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 2000);
+  })
+  .catch(() => {
+    btn.textContent = '⚠ Error — try again';
+    setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 2500);
   });
 };
 
