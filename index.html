@@ -2348,11 +2348,11 @@ function renderLog() {
           </div>`).join('')}
         </div>` : ''}
 
-        <div class="log-footer-tip">
+        ${window.isEditMode ? `<div class="log-footer-tip">
           <span style="font-size:14px">ℹ</span>
           <span>Want to update this meeting?</span>
-          ${window.isEditMode ? `<button class="btn btn-sm" onclick="openModal(${realIdx});event.stopPropagation()" style="margin-left:4px"><span style="font-size:13px">✎</span> Edit meeting</button>` : ''}
-        </div>
+          <button class="btn btn-sm" onclick="openModal(${realIdx});event.stopPropagation()" style="margin-left:4px"><span style="font-size:13px">✎</span> Edit meeting</button>
+        </div>` : ''}
 
       </div>
     </div>`;
