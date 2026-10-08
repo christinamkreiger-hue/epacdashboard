@@ -1011,20 +1011,24 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
 <!-- ── JSONBin Sync Layer ─────────────────────────────────────────── -->
 <script>
 (function() {
-  // All sync goes through the Netlify function proxy — same origin, no CORS preflight.
-  // GET and PUT both hit /.netlify/functions/sync which forwards to JSONBin server-side.
-  const PROXY_URL = '/.netlify/functions/sync';
+  const BIN_ID  = '6ac69b27ac6210605a1d63f3';
+  const API_KEY = '$2a$10$qpTg9qVFmvE1rKsKieyn8.LHtTh9p8VG3F.LZ4uggRF9TXgypv9wC';
+  const BIN_URL = 'https://api.jsonbin.io/v3/b/' + BIN_ID;
 
   window._sheetSyncing = false;
   window._sheetLoaded  = false;
 
-  // ── Save meetings + projects via proxy ──
+  // ── Save: requires auth header (PUT always needs it) ──
   window.saveToSheet = function() {
     window._sheetSyncing = true;
     _setSyncBadge('saving');
-    fetch(PROXY_URL, {
+    fetch(BIN_URL, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': API_KEY,
+        'X-Bin-Private': 'false'
+      },
       body: JSON.stringify({
         meetings: window._epacMeetings(),
         projects: window._epacProjects()
@@ -1035,16 +1039,15 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
     .catch(() => { window._sheetSyncing = false; _setSyncBadge('error'); });
   };
 
+  // ── Load: use access key as query param — no custom headers, no CORS preflight ──
   window.loadFromSheet = function(callback) {
     _setSyncBadge('loading');
-    // Same-origin request to Netlify proxy — no custom headers, no CORS preflight.
-    fetch(PROXY_URL, {
+    fetch(BIN_URL + '/latest?accessKey=' + API_KEY + '&meta=false', {
       method: 'GET',
       cache: 'no-store'
     })
     .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
     .then(data => {
-      // Proxy returns { record: {...} } from JSONBin — unwrap it
       const record = data && data.record ? data.record : data;
       if (record && (record.meetings || record.projects)) {
         window._sheetLoaded = true;
