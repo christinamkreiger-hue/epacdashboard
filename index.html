@@ -1601,11 +1601,11 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">
         <div>
           <label style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);display:block;margin-bottom:4px">Linked PBF Metric</label>
-          <select id="qi-metric" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface);box-sizing:border-box">${metricOpts()}</select>
+          <select id="qi-metric" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface);box-sizing:border-box"><option value="">— None —</option></select>
         </div>
         <div>
           <label style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);display:block;margin-bottom:4px">Strategic Priority</label>
-          <select id="qi-priority" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface);box-sizing:border-box">${priorityOpts()}</select>
+          <select id="qi-priority" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface);box-sizing:border-box"><option value="">— None —</option></select>
         </div>
       </div>
     </div>
@@ -3257,6 +3257,8 @@ function openQuickIntModal() {
   document.getElementById('qi-name').value = '';
   const wrap = document.getElementById('qi-pop-wrap');
   wrap.innerHTML = '<label style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);display:block;margin-bottom:4px">Population</label>' + popDropdownsHTML('qi-pop', {});
+  document.getElementById('qi-metric').innerHTML = metricOpts('');
+  document.getElementById('qi-priority').innerHTML = priorityOpts('');
 }
 function closeQuickIntModal() {
   document.getElementById('quick-int-modal').style.display = 'none';
