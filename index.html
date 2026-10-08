@@ -1842,7 +1842,10 @@ function _applyCloudData(data) {
     changed = true;
   }
   if (data.projects && Array.isArray(data.projects) && data.projects.length > 0) {
-    try { localStorage.setItem('epac-projects', JSON.stringify(data.projects)); } catch(e) {}
+    try {
+      localStorage.setItem('epac-projects', JSON.stringify(data.projects));
+      window.projects = data.projects;
+    } catch(e) {}
     changed = true;
   }
   if (changed) {
@@ -2605,7 +2608,8 @@ const STATUS_COLORS = {
   'Complete':    { bg:'#eef7ee', color:'#2a7a2a' }
 };
 
-let projects = JSON.parse(localStorage.getItem('epac-projects') || '[]');
+window.projects = JSON.parse(localStorage.getItem('epac-projects') || '[]');
+let projects = window.projects;
 
 function saveProjects() {
   persistProjects(projects);
@@ -2615,6 +2619,7 @@ function saveProjects() {
 const projectEditMode = {};
 
 function renderProjects() {
+  projects = window.projects; // always sync from global
   const list = document.getElementById('projects-list');
   const empty = document.getElementById('projects-empty');
   list.innerHTML = '';
