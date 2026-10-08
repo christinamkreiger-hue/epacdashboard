@@ -929,7 +929,7 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
         if (cloudBtn) cloudBtn.style.display = '';
       } else {
         editorEls.forEach(el => { el.disabled = true; el.style.opacity = '.38'; el.style.pointerEvents = 'none'; });
-        document.querySelectorAll('input:not(#edit-mode-pw-input), textarea, select:not(#act-filter-status)').forEach(el => { el.disabled = true; });
+        document.querySelectorAll('input:not(#edit-mode-pw-input), textarea, select').forEach(el => { el.disabled = true; });
         const badge = document.getElementById('edit-mode-badge');
         if (badge) { badge.innerHTML = '👁 View Only'; badge.style.background='#e6f3ed'; badge.style.color='#007749'; }
         const toggleBtn = document.getElementById('edit-mode-toggle');
@@ -1488,16 +1488,8 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
         <p>All action items across EPAC meetings — edit status and details inline</p>
       </div>
     </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:1rem">
+    <div style="display:flex;align-items:center;margin-bottom:1rem">
       <div style="font-size:13px;color:var(--text-secondary)" id="act-count-label"></div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <select id="act-filter-status" onchange="renderActSummary()" style="font-size:13px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface)">
-          <option value="">All statuses</option>
-          <option value="progress">In Progress</option>
-          <option value="done">Complete</option>
-          <option value="hold">On Hold</option>
-        </select>
-      </div>
     </div>
     <div id="act-summary-list"></div>
   </section>
@@ -3091,8 +3083,6 @@ function renderActSummary() {
   const el = document.getElementById('act-summary-list');
   const lbl = document.getElementById('act-count-label');
   if (!el) return;
-  const filterStatus = document.getElementById('act-filter-status')?.value || '';
-
   // Collect all action items with references back to their meeting/index
   const all = [];
   meetings.forEach((m, mi) => {
@@ -3101,7 +3091,7 @@ function renderActSummary() {
     });
   });
 
-  const filtered = filterStatus ? all.filter(a => a.status === filterStatus) : all;
+  const filtered = all;
   const open = all.filter(a => a.status !== 'done').length;
 
   if (lbl) lbl.textContent = all.length
