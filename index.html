@@ -933,6 +933,10 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
         const toggleBtn = document.getElementById('edit-mode-toggle');
         if (toggleBtn) { toggleBtn.textContent = '✎ Enable Editing'; toggleBtn.style.background='var(--blue-pale)'; toggleBtn.style.color='var(--blue)'; toggleBtn.style.borderColor='var(--blue-light)'; }
       }
+      // Re-render so edit/delete buttons appear or disappear
+      if (typeof renderLog === 'function') renderLog();
+      if (typeof renderProjects === 'function') renderProjects();
+      if (typeof renderActSummary === 'function') renderActSummary();
     };
 
     window.showEditModePrompt = function() {
@@ -2330,7 +2334,7 @@ function renderLog() {
         <div class="log-footer-tip">
           <span style="font-size:14px">ℹ</span>
           <span>Want to update this meeting?</span>
-          <button class="btn btn-sm" onclick="openModal(${realIdx});event.stopPropagation()" style="margin-left:4px"><span style="font-size:13px">✎</span> Edit meeting</button>
+          ${window.isEditMode ? `<button class="btn btn-sm" onclick="openModal(${realIdx});event.stopPropagation()" style="margin-left:4px"><span style="font-size:13px">✎</span> Edit meeting</button>` : ''}
         </div>
 
       </div>
@@ -2702,12 +2706,12 @@ function renderProjects() {
           </div>
           <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
             <span style="font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;background:${sc.bg};color:${sc.color}">${escHtml(p.status)}</span>
-            <button onclick="editProject(${i})" title="Edit"
+            ${window.isEditMode ? `<button onclick="editProject(${i})" title="Edit"
               style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:12px;font-weight:600;cursor:pointer;color:var(--blue);font-family:inherit">
               ✏️ Edit
-            </button>
-            <button onclick="projects.splice(${i},1);saveProjects();renderProjects()"
-              style="background:none;border:none;cursor:pointer;color:#c0392b;font-size:16px;line-height:1;padding:2px 4px" title="Remove">✕</button>
+            </button>` : ''}
+            ${window.isEditMode ? `<button onclick="projects.splice(${i},1);saveProjects();renderProjects()"
+              style="background:none;border:none;cursor:pointer;color:#c0392b;font-size:16px;line-height:1;padding:2px 4px" title="Remove">✕</button>` : ''}
           </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:${p.notes?'10px':'0'}">
@@ -3112,8 +3116,8 @@ function renderActSummary() {
           </div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;flex-shrink:0">
-          <select onchange="updateAction(${mi},${ai},'status',this.value)" ${dis}
-            style="font-size:12px;font-weight:700;padding:4px 8px;border-radius:20px;border:1px solid ${statusColor(a.status)};color:${statusColor(a.status)};background:transparent;cursor:pointer;${disStyle}">
+          <select onchange="updateAction(${mi},${ai},'status',this.value)"
+            style="font-size:12px;font-weight:700;padding:4px 8px;border-radius:20px;border:1px solid ${statusColor(a.status)};color:${statusColor(a.status)};background:transparent;cursor:pointer;">
             ${STATUS_OPTS(a.status)}
           </select>
         </div>
@@ -3148,8 +3152,11 @@ function updateAction(meetingIdx, actionIdx, field, value) {
   persistMeetings();
   // Re-render log badges without re-rendering the whole action list (would reset inputs)
   renderLog();
-  // Re-render border color if status changed
-  if (field === 'status') renderActSummary();
+  // Re-render border color if status changed, and auto-sync to cloud
+  if (field === 'status') {
+    renderActSummary();
+    if (typeof window.saveToSheet === 'function') window.saveToSheet();
+  }
 }
 
 /* ── STORY SUMMARY LIST ── */
