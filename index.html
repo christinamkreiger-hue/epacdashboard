@@ -929,7 +929,7 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
         if (cloudBtn) cloudBtn.style.display = '';
       } else {
         editorEls.forEach(el => { el.disabled = true; el.style.opacity = '.38'; el.style.pointerEvents = 'none'; });
-        document.querySelectorAll('input:not(#edit-mode-pw-input), textarea, select').forEach(el => { el.disabled = true; });
+        document.querySelectorAll('input:not(#edit-mode-pw-input), textarea, select:not(#act-filter-status)').forEach(el => { el.disabled = true; });
         const badge = document.getElementById('edit-mode-badge');
         if (badge) { badge.innerHTML = '👁 View Only'; badge.style.background='#e6f3ed'; badge.style.color='#007749'; }
         const toggleBtn = document.getElementById('edit-mode-toggle');
