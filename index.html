@@ -1113,9 +1113,9 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
     <button class="nav-tab active" onclick="switchTab('about')">About EPAC</button>
     <button class="nav-tab" onclick="switchTab('dashboard')">Understanding PBF</button>
     <button class="nav-tab" onclick="switchTab('intervention')">Interventions</button>
-    <button class="nav-tab" onclick="switchTab('actions')">Action Items</button>
     <button class="nav-tab" onclick="switchTab('projects')">Projects</button>
-    <button class="nav-tab" onclick="switchTab('story')">Success Story</button>
+    <button class="nav-tab" onclick="switchTab('actions')">Action Items</button>
+    <button class="nav-tab" onclick="switchTab('story')">Success Stories</button>
     <button class="nav-tab" onclick="switchTab('log')">Meeting Log</button>
   </div>
 </nav>
@@ -1901,7 +1901,7 @@ window.manualPullFromCloud = function(btn) {
 function updateWeek() {} // week now manually selected via dropdown
 
 /* ── TABS ── */
-const TAB_IDS = ['about','dashboard','intervention','actions','projects','story','log'];
+const TAB_IDS = ['about','dashboard','intervention','projects','actions','story','log'];
 function switchTab(name) {
   document.querySelectorAll('.nav-tab').forEach((t, i) => t.classList.toggle('active', TAB_IDS[i] === name));
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
