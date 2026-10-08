@@ -1569,7 +1569,7 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
       <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);margin-bottom:10px">📅 Meeting Schedule — Fall 2026</div>
       <div style="background:var(--white);border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)">
         <div class="sched-row" data-date="2026-10-06"><div class="sched-dot"></div><div class="sched-info"><div class="sched-label">Tuesday, October 6, 2026</div><div class="sched-time">11:00 a.m. – 12:00 p.m. &nbsp;·&nbsp; Edwards Hall 210</div></div><div class="sched-badge" id="sched-badge-0"></div></div>
-        <div class="sched-row" data-date="2026-10-20"><div class="sched-dot"></div><div class="sched-info"><div class="sched-label">Tuesday, October 20, 2026</div><div class="sched-time">11:00 a.m. – 12:00 p.m. &nbsp;·&nbsp; Edwards Hall 210</div></div><div class="sched-badge" id="sched-badge-1"></div></div>
+        <div class="sched-row" data-date="2026-10-21"><div class="sched-dot"></div><div class="sched-info"><div class="sched-label">Wednesday, October 21, 2026</div><div class="sched-time">1:00 p.m. – 2:00 p.m. &nbsp;·&nbsp; Edwards Hall 210</div></div><div class="sched-badge" id="sched-badge-1"></div></div>
         <div class="sched-row" data-date="2026-11-03"><div class="sched-dot"></div><div class="sched-info"><div class="sched-label">Tuesday, November 3, 2026</div><div class="sched-time">11:30 a.m. – 12:30 p.m. &nbsp;·&nbsp; Edwards Hall 210</div></div><div class="sched-badge" id="sched-badge-2"></div></div>
         <div class="sched-row" data-date="2026-11-17"><div class="sched-dot"></div><div class="sched-info"><div class="sched-label">Tuesday, November 17, 2026</div><div class="sched-time">11:00 a.m. – 12:00 p.m. &nbsp;·&nbsp; Edwards Hall 210</div></div><div class="sched-badge" id="sched-badge-3"></div></div>
         <div class="sched-row" data-date="2026-12-01"><div class="sched-dot"></div><div class="sched-info"><div class="sched-label">Tuesday, December 1, 2026</div><div class="sched-time">11:00 a.m. – 12:00 p.m. &nbsp;·&nbsp; Edwards Hall 210</div></div><div class="sched-badge" id="sched-badge-4"></div></div>
@@ -1598,6 +1598,16 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
         <input id="qi-name" type="text" placeholder="Describe the intervention…" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:var(--surface);box-sizing:border-box" />
       </div>
       <div id="qi-pop-wrap"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">
+        <div>
+          <label style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);display:block;margin-bottom:4px">Linked PBF Metric</label>
+          <select id="qi-metric" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface);box-sizing:border-box">${metricOpts()}</select>
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);display:block;margin-bottom:4px">Strategic Priority</label>
+          <select id="qi-priority" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface);box-sizing:border-box">${priorityOpts()}</select>
+        </div>
+      </div>
     </div>
     <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px">
       <button class="btn" onclick="closeQuickIntModal()">Cancel</button>
@@ -1806,6 +1816,12 @@ const BARRIER_TYPES = [
   'Degree audit issue','Financial aid process','Technology limitation',
   'Cross-department handoff failure','Other'
 ];
+
+const PBF_METRICS = ['','4 – Four-Year FTIC Grad','5 – Academic Progress Rate','9A – Three-Year AA Transfer Grad','9B – Six-Year Pell Grad'];
+const STRATEGIC_PRIORITIES = ['','First Year Persistence','Graduation Acceleration','Stop-Out Recovery','Predictive Student Success','Faculty Engagement','Meaningful & Coordinated Communications'];
+
+const metricOpts = (sel='') => PBF_METRICS.map(v => `<option value="${v}"${v===sel?' selected':''}>${v||'— None —'}</option>`).join('');
+const priorityOpts = (sel='') => STRATEGIC_PRIORITIES.map(v => `<option value="${v}"${v===sel?' selected':''}>${v||'— None —'}</option>`).join('');
 
 const STATUS_OPTS = s => [['progress','In Progress'],['done','Complete'],['hold','On Hold']].map(([v,l])=>`<option value="${v}"${s===v?' selected':''}>${l}</option>`).join('');
 
@@ -2110,6 +2126,16 @@ function addIntervention() {
       <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Intervention</label>
       <input type="text" class="int-name" placeholder="Describe the intervention currently underway…" style="width:100%" />
     </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div>
+        <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Linked PBF Metric</label>
+        <select class="int-metric" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface)">${metricOpts()}</select>
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Strategic Priority</label>
+        <select class="int-priority" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface)">${priorityOpts()}</select>
+      </div>
+    </div>
     <div class="field" style="margin-bottom:6px">
       <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Barriers present?</label>
       <div style="display:flex;gap:12px;align-items:center">
@@ -2194,6 +2220,8 @@ function collectData() {
     interventions.push({
       name: div.querySelector('.int-name')?.value,
       population: popValsFromEl('int-pop', div),
+      metric: div.querySelector('.int-metric')?.value || '',
+      priority: div.querySelector('.int-priority')?.value || '',
       hasBarrier: barrierYN ? 'yes' : 'no',
       barrierDesc: barrierYN ? (div.querySelector('.int-barrier-desc')?.value || '') : ''
     });
@@ -2327,6 +2355,8 @@ function renderLog() {
             <div class="log-int-dot${i.hasBarrier==='yes'?' barrier':''}"></div>
             <div class="log-int-pop">${typeof i.population === 'object' ? popLabel(i.population) : (i.population||'All students')}</div>
             <div class="log-int-desc">${i.name}</div>
+            ${i.metric?`<span style="font-size:10px;font-weight:700;background:#e8eef7;color:#002D72;border-radius:20px;padding:2px 7px;border:1px solid #c5d3e8;flex-shrink:0">📊 ${i.metric}</span>`:''}
+            ${i.priority?`<span style="font-size:10px;font-weight:700;background:#eef7f2;color:#007749;border-radius:20px;padding:2px 7px;border:1px solid #b6deca;flex-shrink:0">★ ${i.priority}</span>`:''}
             ${i.hasBarrier==='yes'?`<span class="log-int-barrier-tag">⚑ Barrier</span>`:''}
             <span>›</span>
           </div>`).join('')}
@@ -2466,6 +2496,16 @@ function openModal(idx) {
           <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Population impacted</label>
           ${popDropdownsHTML('me-int-pop-' + ii, typeof i.population === 'object' ? i.population : {})}
         </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div>
+            <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Linked PBF Metric</label>
+            <select class="me-int-metric" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface)">${metricOpts(i.metric||'')}</select>
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Strategic Priority</label>
+            <select class="me-int-priority" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface)">${priorityOpts(i.priority||'')}</select>
+          </div>
+        </div>
         <div class="field" style="margin:0">
           <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Barriers present?</label>
           <div style="display:flex;gap:12px;margin-top:6px">
@@ -2558,6 +2598,8 @@ function saveBarrierUpdates() {
   m.interventions = Array.from(document.querySelectorAll('#me-int-list .sub-card')).map((div,ii) => ({
     name: div.querySelector('.me-int-name')?.value,
     population: popValsFromEl('me-int-pop-' + ii, div),
+    metric: div.querySelector('.me-int-metric')?.value || '',
+    priority: div.querySelector('.me-int-priority')?.value || '',
     hasBarrier: div.querySelector('.me-int-barrier-yn[value="yes"]')?.checked ? 'yes' : 'no',
     barrierDesc: div.querySelector('.me-int-barrier-desc')?.value || '',
   }));
@@ -3070,11 +3112,19 @@ function renderIntSummary() {
     return;
   }
   el.innerHTML = all.slice().reverse().map(i => `
-    <div class="log-action-row" style="border-left-color:var(--blue);margin-bottom:8px">
-      <div style="font-size:11px;color:var(--text-muted);white-space:nowrap">${i.date || ''}</div>
-      <div class="log-action-text">${i.name}</div>
-      <div style="font-size:12px;color:var(--text-secondary)">${typeof i.population === 'object' ? popLabel(i.population) : (i.population || '')}</div>
-      ${i.hasBarrier === 'yes' ? '<span class="log-int-barrier-tag">⚑ Barrier</span>' : ''}
+    <div class="card" style="margin-bottom:8px;border-left:4px solid var(--blue);padding:12px 14px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:200px">
+          <div style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:4px">${i.name}</div>
+          <div style="font-size:12px;color:var(--text-secondary)">${typeof i.population === 'object' ? popLabel(i.population) : (i.population || '')}</div>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);white-space:nowrap;flex-shrink:0">📅 ${i.date || ''}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center">
+        ${i.metric ? `<span style="font-size:11px;font-weight:700;background:#e8eef7;color:#002D72;border-radius:20px;padding:3px 10px;border:1px solid #c5d3e8">📊 ${i.metric}</span>` : ''}
+        ${i.priority ? `<span style="font-size:11px;font-weight:700;background:#eef7f2;color:#007749;border-radius:20px;padding:3px 10px;border:1px solid #b6deca">★ ${i.priority}</span>` : ''}
+        ${i.hasBarrier === 'yes' ? '<span class="log-int-barrier-tag">⚑ Barrier</span>' : ''}
+      </div>
     </div>`).join('');
 }
 
@@ -3217,7 +3267,7 @@ function saveQuickInt() {
   const name = document.getElementById('qi-name').value.trim();
   if (!date) { alert('Please enter a date.'); return; }
   if (!name) { alert('Please describe the intervention.'); return; }
-  const intervention = { name, population: popValsFromEl('qi-pop', document.getElementById('qi-pop-wrap')), hasBarrier: 'no', barrierDesc: '' };
+  const intervention = { name, population: popValsFromEl('qi-pop', document.getElementById('qi-pop-wrap')), metric: document.getElementById('qi-metric')?.value || '', priority: document.getElementById('qi-priority')?.value || '', hasBarrier: 'no', barrierDesc: '' };
   const meeting = { id: 'mtg-qi-' + Date.now(), date, weekLabel: '', notes: '', dashboard: { apr:'', fticTotal:'', fticRegAbove:'', fticRegBelow:'', fticUnregAbove:'', fticUnregBelow:'', fticNotes:'', gradNotes:'', g4ftic:{}, g3aa:{}, g6pell:{}, g4xfer:{} }, barriers: [], populations: [], interventions: [intervention], actions: [], story: { type:'', text:'', teller:'' }, attendance: { members:[], guests:[], total:0 } };
   meetings.push(meeting);
   persistMeetings();
