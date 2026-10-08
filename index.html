@@ -3141,8 +3141,8 @@ function renderActSummary() {
           </div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;flex-shrink:0">
-          <select onchange="updateAction(${mi},${ai},'status',this.value)"
-            style="font-size:12px;font-weight:700;padding:4px 8px;border-radius:20px;border:1px solid ${statusColor(a.status)};color:${statusColor(a.status)};background:transparent;cursor:pointer;">
+          <select onchange="updateAction(${mi},${ai},'status',this.value)" ${dis}
+            style="font-size:12px;font-weight:700;padding:4px 8px;border-radius:20px;border:1px solid ${statusColor(a.status)};color:${statusColor(a.status)};background:transparent;cursor:${window.isEditMode?'pointer':'default'};${disStyle}">
             ${STATUS_OPTS(a.status)}
           </select>
         </div>
