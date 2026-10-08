@@ -1008,27 +1008,21 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
   })();
 </script>
 
-<!-- ── JSONBin Sync Layer ─────────────────────────────────────────── -->
+<!-- ── Cloudflare Worker Sync Layer ───────────────────────────────── -->
 <script>
 (function() {
-  const BIN_ID  = '6ac69b27ac6210605a1d63f3';
-  const API_KEY = '$2a$10$qpTg9qVFmvE1rKsKieyn8.LHtTh9p8VG3F.LZ4uggRF9TXgypv9wC';
-  const BIN_URL = 'https://api.jsonbin.io/v3/b/' + BIN_ID;
+  const WORKER_URL = 'https://epac-sync.christina-m-kreiger.workers.dev';
 
   window._sheetSyncing = false;
   window._sheetLoaded  = false;
 
-  // ── Save: requires auth header (PUT always needs it) ──
+  // ── Save via Cloudflare Worker (no CORS issues) ──
   window.saveToSheet = function() {
     window._sheetSyncing = true;
     _setSyncBadge('saving');
-    fetch(BIN_URL, {
+    fetch(WORKER_URL, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Master-Key': API_KEY,
-        'X-Bin-Private': 'false'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         meetings: window._epacMeetings(),
         projects: window._epacProjects()
@@ -1039,10 +1033,10 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
     .catch(() => { window._sheetSyncing = false; _setSyncBadge('error'); });
   };
 
-  // ── Load: use access key as query param — no custom headers, no CORS preflight ──
+  // ── Load via Cloudflare Worker (no CORS issues) ──
   window.loadFromSheet = function(callback) {
     _setSyncBadge('loading');
-    fetch(BIN_URL + '/latest?accessKey=' + API_KEY + '&meta=false', {
+    fetch(WORKER_URL, {
       method: 'GET',
       cache: 'no-store'
     })
