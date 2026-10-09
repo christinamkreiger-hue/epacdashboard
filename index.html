@@ -3051,11 +3051,17 @@ function saveBarrierUpdates() {
     });
   }
 
-  renderLog();
-  persistMeetings();
-  const btn = document.querySelector('.modal-footer .btn-primary');
-  btn.innerHTML = '<span>✓</span> Saved!';
-  setTimeout(() => { btn.innerHTML = '<span>💾</span> Save changes'; }, 1800);
+  try {
+    renderLog();
+    persistMeetings();
+    const btn = document.querySelector('.modal-footer .btn-primary');
+    btn.innerHTML = '<span>✓</span> Saved!';
+    setTimeout(() => { btn.innerHTML = '<span>💾</span> Save changes'; }, 1800);
+  } catch(e) {
+    console.error('saveBarrierUpdates error:', e);
+    const btn = document.querySelector('.modal-footer .btn-primary');
+    if (btn) { btn.innerHTML = '<span>⚠</span> Error: ' + e.message; btn.style.background='#c0392b'; }
+  }
 }
 
 /* ── SAVE ── */
