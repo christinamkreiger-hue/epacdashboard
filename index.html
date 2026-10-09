@@ -3552,7 +3552,7 @@ function renderIntSummary() {
           ? `<button class="btn btn-sm" style="font-size:12px;padding:3px 10px" onclick="openPlanEditPanel(${i._pi},this)"><span style="font-size:13px">✎</span> Edit</button>`
           : `<button class="btn btn-sm" style="font-size:12px;padding:3px 10px" onclick="openIntEditPanel(${i._mi},${i._ii},this)"><span style="font-size:13px">✎</span> Edit</button>`)
       : '';
-    const dateLabel = i.date ? `<span style="font-size:11px;color:var(--text-muted);white-space:nowrap">📅 ${i.date}</span>` : `<span style="font-size:11px;color:var(--text-muted);white-space:nowrap;font-style:italic">📋 Planning</span>`;
+    const dateLabel = '';
     return `
     <div class="card int-summary-card" ${isPlan ? `data-pi="${i._pi}"` : `data-mi="${i._mi}" data-ii="${i._ii}"`} style="margin-bottom:8px;border-left:4px solid ${isPlan ? '#b45309' : 'var(--blue)'};padding:12px 14px">
       <div class="int-view-mode">
