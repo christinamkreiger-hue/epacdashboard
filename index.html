@@ -2741,15 +2741,17 @@ function openModal(idx) {
     <div class="modal-section-title">Action items</div>
     <div id="me-act-list">
       ${(m.actions||[]).filter(a=>a.action&&a.action.trim()).map((a,ai) => {
-        const projOpts = (projects.length
-          ? '<option value="">— None —</option>' + projects.map(p=>`<option value="${escHtml(p.title)}"${p.title===a.linkedProject?' selected':''}>${escHtml(p.title)}</option>`).join('')
-          : '<option value="">No projects saved</option>');
+        const intTitles = meetings.flatMap(mt=>(mt.interventions||[]).map(i=>i.title||i.name)).concat(planningItems.map(p=>p.title||p.name)).filter(Boolean).filter((v,i,arr)=>arr.indexOf(v)===i);
+        const linkOpts = '<option value="">— None —</option>'
+          + '<optgroup label="Intervention">' + intTitles.map(t=>`<option value="int:${escHtml(t)}"${a.linkedIntervention===t?' selected':''}>${escHtml(t)}</option>`).join('') + '</optgroup>'
+          + '<optgroup label="Projects">' + projects.map(p=>`<option value="proj:${escHtml(p.title)}"${a.linkedProject===p.title?' selected':''}>${escHtml(p.title)}</option>`).join('') + '</optgroup>'
+          + '<optgroup label="Meeting">' + meetings.slice().reverse().map(mt=>`<option value="mtg:${escHtml(mt.id)}">${escHtml(mt.date+(mt.weekLabel?' · '+mt.weekLabel:''))}</option>`).join('') + '</optgroup>';
         return `<div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;gap:8px;align-items:start;margin-bottom:8px" id="me-act-${ai}">
           <input type="text" class="me-act-action" value="${escHtml(a.action||'')}" placeholder="Action…" />
           <input type="text" class="me-act-owner" value="${escHtml(a.owner||'')}" placeholder="Owner…" />
           <input type="date" class="field-input me-act-due" value="${a.due||''}" />
           <select class="me-act-status">${STATUS_OPTS(a.status)}</select>
-          <select class="me-act-project" title="Link to project">${projOpts}</select>
+          <select class="me-act-link" title="Link to">${linkOpts}</select>
           <button class="btn btn-sm btn-danger" onclick="this.closest('[id^=me-act-]').remove()" title="Remove" style="padding:4px 8px">✕</button>
           <input type="text" class="me-act-outcome" value="${escHtml(a.outcome||'')}" placeholder="Expected outcome…" style="grid-column:1/-1" />
         </div>`;
@@ -2854,8 +2856,8 @@ function saveBarrierUpdates() {
     due: div.querySelector('.me-act-due')?.value,
     status: div.querySelector('.me-act-status')?.value,
     outcome: div.querySelector('.me-act-outcome')?.value,
-    linkedProject: div.querySelector('.me-act-project')?.value || '',
-    linkedIntervention: '',
+    linkedProject: (v => v && v.startsWith('proj:') ? v.slice(5) : '')(div.querySelector('.me-act-link')?.value||''),
+    linkedIntervention: (v => v && v.startsWith('int:') ? v.slice(4) : '')(div.querySelector('.me-act-link')?.value||''),
   }));
   m.actions = [...standaloneActions, ...interventionActionsToMerge];
 
@@ -2984,14 +2986,10 @@ function renderProjects() {
         <div style="margin-top:12px;border-top:1px dashed var(--border);padding-top:10px">
           <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-secondary);margin-bottom:6px">Action Items</div>
           <div id="proj-actions-list-${i}" style="display:grid;gap:6px">
-            ${(p.actions||[]).map((a,ai)=>`<div class="proj-action-row" style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:6px;align-items:center">
+            ${(p.actions||[]).map((a,ai)=>`<div class="proj-action-row" style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:6px;align-items:center">
               <input type="text" class="pra-action" value="${escHtml(a.action||'')}" placeholder="Action…" style="font-size:13px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);font-family:inherit" />
               <input type="text" class="pra-owner" value="${escHtml(a.owner||'')}" placeholder="Owner…" style="font-size:13px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);font-family:inherit" />
               <input type="date" class="pra-due" value="${escHtml(a.due||'')}" style="font-size:13px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);font-family:inherit" />
-              <select class="pra-meeting" style="font-size:12px;padding:5px 6px;border:1px solid var(--border);border-radius:6px;background:var(--surface);font-family:inherit">
-                <option value="">— Meeting —</option>
-                ${meetings.slice().reverse().map(m=>`<option value="${escHtml(m.date)}" ${a.linkedMeeting===m.date?'selected':''}>${escHtml(m.date+(m.weekLabel?' · '+m.weekLabel:''))}</option>`).join('')}
-              </select>
               <button onclick="this.closest('.proj-action-row').remove()" style="background:none;border:1px solid #e0b0b0;border-radius:6px;color:#c0392b;cursor:pointer;padding:4px 8px;font-size:14px;font-family:inherit">✕</button>
             </div>`).join('')}
           </div>
@@ -3085,15 +3083,11 @@ function projAddAction(i) {
   if (!list) return;
   const row = document.createElement('div');
   row.className = 'proj-action-row';
-  row.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:6px;align-items:center';
+  row.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:6px;align-items:center';
   row.innerHTML = `
     <input type="text" class="pra-action" placeholder="Action…" style="font-size:13px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);font-family:inherit" />
     <input type="text" class="pra-owner" placeholder="Owner…" style="font-size:13px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);font-family:inherit" />
     <input type="date" class="pra-due" style="font-size:13px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);font-family:inherit" />
-    <select class="pra-meeting" style="font-size:12px;padding:5px 6px;border:1px solid var(--border);border-radius:6px;background:var(--surface);font-family:inherit">
-      <option value="">— Meeting —</option>
-      ${meetings.slice().reverse().map(m=>`<option value="${escHtml(m.date)}">${escHtml(m.date+(m.weekLabel?' · '+m.weekLabel:''))}</option>`).join('')}
-    </select>
     <button onclick="this.closest('.proj-action-row').remove()" style="background:none;border:1px solid #e0b0b0;border-radius:6px;color:#c0392b;cursor:pointer;padding:4px 8px;font-size:14px;font-family:inherit">✕</button>
   `;
   list.appendChild(row);
@@ -3111,7 +3105,6 @@ function saveProjectCard(i) {
         owner: row.querySelector('.pra-owner')?.value || '',
         due: row.querySelector('.pra-due')?.value || '',
         status: 'progress',
-        linkedMeeting: row.querySelector('.pra-meeting')?.value || '',
         linkedProject: projects[i].title || ''
       };
     }).filter(Boolean);
@@ -3247,9 +3240,11 @@ function meAddAction() {
   const list = document.getElementById('me-act-list');
   if (!list) return;
   const idx = list.children.length;
-  const projOpts = (projects.length
-    ? '<option value="">— None —</option>' + projects.map(p=>`<option value="${escHtml(p.title)}">${escHtml(p.title)}</option>`).join('')
-    : '<option value="">No projects saved</option>');
+  const intTitles2 = meetings.flatMap(mt=>(mt.interventions||[]).map(i=>i.title||i.name)).concat(planningItems.map(p=>p.title||p.name)).filter(Boolean).filter((v,i,arr)=>arr.indexOf(v)===i);
+  const linkOpts2 = '<option value="">— None —</option>'
+    + '<optgroup label="Intervention">' + intTitles2.map(t=>`<option value="int:${escHtml(t)}">${escHtml(t)}</option>`).join('') + '</optgroup>'
+    + '<optgroup label="Projects">' + projects.map(p=>`<option value="proj:${escHtml(p.title)}">${escHtml(p.title)}</option>`).join('') + '</optgroup>'
+    + '<optgroup label="Meeting">' + meetings.slice().reverse().map(mt=>`<option value="mtg:${escHtml(mt.id)}">${escHtml(mt.date+(mt.weekLabel?' · '+mt.weekLabel:''))}</option>`).join('') + '</optgroup>';
   const div = document.createElement('div');
   div.id = 'me-act-' + idx;
   div.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;gap:8px;align-items:start;margin-bottom:8px';
@@ -3258,7 +3253,7 @@ function meAddAction() {
     <input type="text" class="me-act-owner" placeholder="Owner…" />
     <input type="date" class="field-input me-act-due" />
     <select class="me-act-status">${STATUS_OPTS('')}</select>
-    <select class="me-act-project" title="Link to project">${projOpts}</select>
+    <select class="me-act-link" title="Link to">${linkOpts2}</select>
     <button class="btn btn-sm btn-danger" onclick="this.closest('[id^=me-act-]').remove()" title="Remove"><span>✕</span></button>
     <input type="text" class="me-act-outcome" placeholder="Expected outcome…" style="grid-column:1/-1" />
   `;
@@ -3907,16 +3902,10 @@ function renderActSummary() {
                     .concat(planningItems.map(p => p.title||p.name).filter(Boolean))
                     .filter((v,i,arr) => arr.indexOf(v)===i);
                   const projTitles = projects.map(p => p.title).filter(Boolean);
-                  const mtgOpts = meetings.slice().reverse().map(m => {
-                    const label = m.date + (m.weekLabel ? ' · ' + m.weekLabel : '');
-                    const sel = (a._linkedMeetingId === m.id) ? ' selected' : '';
-                    return `<option value="mtg:${escHtml(m.id)}"${sel}>${escHtml(label)}</option>`;
-                  });
-
-                  let opts = '';
-                  if (intTitles.length) opts += `<optgroup label="Interventions">${intTitles.map(t=>`<option value="${escHtml(t)}"${a.linkedIntervention===t?' selected':''}>${escHtml(t)}</option>`).join('')}</optgroup>`;
-                  if (projTitles.length) opts += `<optgroup label="Projects">${projTitles.map(t=>`<option value="${escHtml(t)}"${a.linkedIntervention===t?' selected':''}>${escHtml(t)}</option>`).join('')}</optgroup>`;
-                  if (mtgOpts.length) opts += `<optgroup label="Meetings">${mtgOpts.join('')}</optgroup>`;
+                  const mtgs = meetings.slice().reverse();
+                  let opts = '<optgroup label="Intervention">' + intTitles.map(t=>`<option value="${escHtml(t)}"${a.linkedIntervention===t?' selected':''}>${escHtml(t)}</option>`).join('') + '</optgroup>';
+                  opts += '<optgroup label="Projects">' + projTitles.map(t=>`<option value="${escHtml(t)}"${a.linkedIntervention===t?' selected':''}>${escHtml(t)}</option>`).join('') + '</optgroup>';
+                  opts += '<optgroup label="Meeting">' + mtgs.map(m=>`<option value="mtg:${escHtml(m.id)}"${a._linkedMeetingId===m.id?' selected':''}>${escHtml(m.date+(m.weekLabel?' · '+m.weekLabel:''))}</option>`).join('') + '</optgroup>';
                   return opts;
                 })()}
               </select>`
