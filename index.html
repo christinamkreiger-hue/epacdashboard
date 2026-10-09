@@ -3363,9 +3363,9 @@ function mePickExistingAction() {
 
   const overlay = document.createElement('div');
   overlay.id = 'me-pick-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(2px)';
   overlay.innerHTML = `
-    <div style="background:var(--bg);border-radius:14px;width:100%;max-width:560px;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 12px 48px rgba(0,0,0,.3)">
+    <div style="background:var(--bg,#fff);border-radius:14px;width:100%;max-width:560px;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 12px 48px rgba(0,0,0,.35);position:relative;z-index:1">
       <div style="padding:16px 20px 12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
         <div style="font-size:16px;font-weight:700;color:var(--text-primary)">📋 Pull In Existing Action</div>
         <button onclick="document.getElementById('me-pick-overlay').remove()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-muted);line-height:1;padding:0 4px">×</button>
