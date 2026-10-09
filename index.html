@@ -1,3 +1,4 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1949,6 +1950,7 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
     <div class="modal-body" id="modal-body"></div>
     <div class="modal-footer">
       <button class="btn" onclick="closeModal()">Close</button>
+      <button id="fix-dup-btn" class="btn" onclick="fixAllDuplicates()" style="background:#f0f4fb;color:var(--text-secondary);border:1px solid var(--border);margin-right:8px" title="Remove duplicate interventions from all meetings and sync to cloud">🔧 Fix Duplicate Interventions</button>
       <button class="btn btn-primary" style="background:var(--green);color:#fff;border-color:var(--green)" onclick="saveBarrierUpdates()"><span>💾</span> Save changes</button>
     </div>
   </div>
@@ -1995,12 +1997,15 @@ try {
   // Cleanup: remove intervention-sourced actions from m.actions (they live in m.interventions[].actions)
   // Also deduplicate interventions by title+name, and deduplicate actions by content
   meetings.forEach(m => {
-    // Deduplicate interventions by title+name
+    // Deduplicate interventions — keep FIRST occurrence, drop all subsequent identical ones
+    // Uses title+name as key; blank entries are also deduplicated (keep only first blank)
     if (Array.isArray(m.interventions)) {
       const seenInt = new Set();
+      let blankCount = 0;
       m.interventions = m.interventions.filter(i => {
-        const key = (i.title||'').trim() + '|' + (i.name||'').trim();
-        if (!key || key === '|') return true;
+        const key = (i.title||'').trim() + '||' + (i.name||'').trim();
+        const isBlank = (i.title||'').trim() === '' && (i.name||'').trim() === '';
+        if (isBlank) { blankCount++; return blankCount <= 1; }
         if (seenInt.has(key)) return false;
         seenInt.add(key);
         return true;
@@ -2061,9 +2066,11 @@ function _applyCloudData(data) {
     meetings.forEach(m => {
       if (Array.isArray(m.interventions)) {
         const seenInt = new Set();
+        let blankCount = 0;
         m.interventions = m.interventions.filter(i => {
-          const key = (i.title||'').trim() + '|' + (i.name||'').trim();
-          if (!key || key === '|') return true;
+          const isBlank = (i.title||'').trim() === '' && (i.name||'').trim() === '';
+          if (isBlank) { blankCount++; return blankCount <= 1; }
+          const key = (i.title||'').trim() + '||' + (i.name||'').trim();
           if (seenInt.has(key)) return false;
           seenInt.add(key);
           return true;
@@ -2926,6 +2933,53 @@ document.addEventListener('click', function(e) {
   }
 });
 
+// ── One-time cleanup: deduplicate all interventions and push clean data to cloud ──
+function fixAllDuplicates() {
+  let totalRemoved = 0;
+  meetings.forEach(m => {
+    const before = (m.interventions||[]).length;
+    if (Array.isArray(m.interventions)) {
+      const seenInt = new Set();
+      let blankCount = 0;
+      m.interventions = m.interventions.filter(i => {
+        const isBlank = (i.title||'').trim() === '' && (i.name||'').trim() === '';
+        if (isBlank) { blankCount++; return blankCount <= 1; }
+        const key = (i.title||'').trim() + '||' + (i.name||'').trim();
+        if (seenInt.has(key)) return false;
+        seenInt.add(key);
+        return true;
+      });
+    }
+    if (Array.isArray(m.actions)) {
+      m.actions = m.actions.filter(a => !(a.linkedIntervention && a.linkedIntervention.trim()));
+      const seen = new Set();
+      m.actions = m.actions.filter(a => {
+        const key = (a.action||'').trim()+'|'+(a.owner||'')+'|'+(a.due||'');
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+    totalRemoved += before - (m.interventions||[]).length;
+  });
+  // Persist clean data to localStorage AND push to cloud
+  try { localStorage.setItem('epac_meetings', JSON.stringify(meetings)); } catch(e) {}
+  if (typeof saveToSheet === 'function') saveToSheet();
+  if (typeof renderLog === 'function') renderLog();
+  // Update button to show result
+  const btn = document.getElementById('fix-dup-btn');
+  if (btn) {
+    btn.innerHTML = totalRemoved > 0 ? '✓ Removed ' + totalRemoved + ' duplicate(s) — cloud updating…' : '✓ No duplicates found';
+    btn.style.background = '#007749';
+    btn.style.color = '#fff';
+    setTimeout(() => {
+      btn.innerHTML = '🔧 Fix Duplicate Interventions';
+      btn.style.background = '';
+      btn.style.color = '';
+    }, 4000);
+  }
+}
+
 function saveBarrierUpdates() {
   if (currentModalMeetingIndex === null) return;
   const m = meetings[currentModalMeetingIndex];
@@ -2964,8 +3018,11 @@ function saveBarrierUpdates() {
       return { action: act, owner: row.querySelector('.meia-owner')?.value||'', due: row.querySelector('.meia-due')?.value||'', status: row.querySelector('.meia-status')?.value||'progress', outcome: '', linkedProject: '', linkedIntervention: intTitle };
     }).filter(Boolean);
     interventionActionsToMerge.push(...intActions);
-    const dupKey = intTitle.trim() + '|' + (div.querySelector('.me-int-name')?.value||'').trim();
-    if (dupKey !== '|' && seenIntTitles.has(dupKey)) return null; // skip duplicate
+    const intName = (div.querySelector('.me-int-name')?.value||'').trim();
+    const dupKey = intTitle.trim() + '||' + intName;
+    const isDupBlank = intTitle.trim() === '' && intName === '';
+    if (!isDupBlank && seenIntTitles.has(dupKey)) return null; // skip duplicate content-match
+    if (isDupBlank) { if (seenIntTitles.has('__blank__')) return null; seenIntTitles.add('__blank__'); }
     seenIntTitles.add(dupKey);
     return {
       title: intTitle,
@@ -3038,18 +3095,6 @@ function saveBarrierUpdates() {
     persistPlanning();
   }
   document.body._pendingSourceRemovals = [];
-
-  // Dedup interventions on save (belt-and-suspenders)
-  if (Array.isArray(m.interventions)) {
-    const seenInt = new Set();
-    m.interventions = m.interventions.filter(i => {
-      const key = (i.title||'').trim() + '|' + (i.name||'').trim();
-      if (!key || key === '|') return true;
-      if (seenInt.has(key)) return false;
-      seenInt.add(key);
-      return true;
-    });
-  }
 
   try {
     renderLog();
@@ -4812,3 +4857,5 @@ function doImport() {
 </div><!-- /pw-content -->
 </body>
 </html>
+
+</body></html>
