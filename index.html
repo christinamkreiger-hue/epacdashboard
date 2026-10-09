@@ -1490,8 +1490,11 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
         <p>All action items across EPAC meetings — edit status and details inline</p>
       </div>
     </div>
-    <div style="display:flex;align-items:center;margin-bottom:1rem">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:1rem">
       <div style="font-size:13px;color:var(--text-secondary)" id="act-count-label"></div>
+      <button class="btn btn-primary editor-only" style="background:var(--green);color:#fff;border-color:var(--green);font-size:14px;padding:9px 18px" onclick="openQuickActionModal()">
+        <span style="font-size:16px;margin-right:4px">+</span> Add Action Item
+      </button>
     </div>
     <div id="act-summary-list"></div>
   </section>
@@ -1582,6 +1585,79 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
 
 
 </main>
+
+<!-- QUICK ACTION MODAL -->
+<div class="modal-overlay" id="quick-action-modal" onclick="if(event.target===this)closeQuickActionModal()" style="display:none;align-items:center;justify-content:center;background:transparent;padding:2rem 1rem">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px 22px;box-shadow:0 1px 4px rgba(0,0,0,.06);max-width:560px;width:100%">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <h3 style="margin:0;font-size:16px;font-weight:700;color:var(--text-primary)">Add Action Item</h3>
+      <button onclick="closeQuickActionModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted);line-height:1">×</button>
+    </div>
+
+    <!-- Mode toggle -->
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <button id="qa-mode-new" onclick="qaSetMode('new')" style="flex:1;padding:8px;border-radius:6px;font-size:13px;font-weight:600;border:2px solid var(--green);background:var(--green);color:#fff;cursor:pointer">✏️ Create new</button>
+      <button id="qa-mode-pull" onclick="qaSetMode('pull')" style="flex:1;padding:8px;border-radius:6px;font-size:13px;font-weight:600;border:2px solid var(--border);background:var(--surface);color:var(--text-secondary);cursor:pointer">📋 Pull from meeting</button>
+    </div>
+
+    <!-- NEW action form -->
+    <div id="qa-new-form">
+      <div style="margin-bottom:10px">
+        <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Action <span style="color:#c00">*</span></label>
+        <textarea id="qa-action" rows="2" placeholder="Describe the action item…" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:var(--surface);resize:none;box-sizing:border-box"></textarea>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div>
+          <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Owner</label>
+          <input id="qa-owner" type="text" placeholder="Who's responsible…" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:var(--surface);box-sizing:border-box" />
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Due date</label>
+          <input id="qa-due" type="date" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:var(--surface);box-sizing:border-box" />
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div>
+          <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Status</label>
+          <select id="qa-status" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:var(--surface)">
+            <option value="planning">Planning</option>
+            <option value="progress" selected>In Progress</option>
+            <option value="done">Complete</option>
+            <option value="hold">On Hold</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Link to meeting <span style="font-weight:400;color:var(--text-muted)">(optional)</span></label>
+          <select id="qa-meeting" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:var(--surface)">
+            <option value="">— Planning only —</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Link to intervention <span style="font-weight:400;color:var(--text-muted)">(optional)</span></label>
+        <select id="qa-intervention" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:var(--surface)">
+          <option value="">— None —</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- PULL from meeting -->
+    <div id="qa-pull-form" style="display:none">
+      <div style="margin-bottom:10px">
+        <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Select meeting</label>
+        <select id="qa-pull-meeting" onchange="qaPullMeetingChanged()" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:var(--surface)">
+          <option value="">— Choose a meeting —</option>
+        </select>
+      </div>
+      <div id="qa-pull-actions" style="display:grid;gap:6px;max-height:280px;overflow-y:auto"></div>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
+      <button class="btn" onclick="closeQuickActionModal()">Cancel</button>
+      <button class="btn btn-primary" id="qa-save-btn" onclick="saveQuickAction()" style="background:var(--green);color:#fff;border-color:var(--green)">Save Action</button>
+    </div>
+  </div>
+</div>
 
 <!-- QUICK INTERVENTION MODAL -->
 <div class="modal-overlay" id="quick-int-modal" onclick="if(event.target===this)closeQuickIntModal()" style="display:none;align-items:center;justify-content:center;background:transparent;padding:2rem 1rem">
@@ -3954,6 +4030,116 @@ function qiAddAction() {
     <button class="btn btn-sm btn-danger" onclick="this.closest('.qi-action-row').remove()"><span>✕</span></button>
   `;
   list.appendChild(row);
+}
+
+// ── QUICK ACTION MODAL ──────────────────────────────────────────────
+let _qaMode = 'new';
+
+function openQuickActionModal() {
+  const m = document.getElementById('quick-action-modal');
+  // populate meeting dropdown
+  const mtgSel = document.getElementById('qa-meeting');
+  mtgSel.innerHTML = '<option value="">— Planning only —</option>' +
+    meetings.slice().reverse().map(mt => `<option value="${escHtml(mt.id)}">${escHtml(mt.date + (mt.weekLabel ? ' · ' + mt.weekLabel : ''))}</option>`).join('');
+  // populate pull-meeting dropdown
+  const pullSel = document.getElementById('qa-pull-meeting');
+  pullSel.innerHTML = '<option value="">— Choose a meeting —</option>' +
+    meetings.slice().reverse().filter(mt => (mt.actions||[]).some(a=>a.action&&a.action.trim())).map(mt => `<option value="${escHtml(mt.id)}">${escHtml(mt.date + (mt.weekLabel ? ' · ' + mt.weekLabel : ''))}</option>`).join('');
+  // populate intervention dropdown
+  const intSel = document.getElementById('qa-intervention');
+  const intTitles = meetings.flatMap(mt => (mt.interventions||[]).map(i=>i.title||i.name)).filter(Boolean)
+    .concat(planningItems.map(p=>p.title||p.name).filter(Boolean))
+    .filter((v,i,arr)=>arr.indexOf(v)===i);
+  intSel.innerHTML = '<option value="">— None —</option>' + intTitles.map(t=>`<option value="${escHtml(t)}">${escHtml(t)}</option>`).join('');
+  // reset fields
+  document.getElementById('qa-action').value = '';
+  document.getElementById('qa-owner').value = '';
+  document.getElementById('qa-due').value = '';
+  document.getElementById('qa-status').value = 'progress';
+  document.getElementById('qa-pull-actions').innerHTML = '';
+  pullSel.value = '';
+  qaSetMode('new');
+  m.style.display = 'flex';
+}
+
+function closeQuickActionModal() {
+  document.getElementById('quick-action-modal').style.display = 'none';
+}
+
+function qaSetMode(mode) {
+  _qaMode = mode;
+  document.getElementById('qa-new-form').style.display = mode === 'new' ? '' : 'none';
+  document.getElementById('qa-pull-form').style.display = mode === 'pull' ? '' : 'none';
+  const btnNew  = document.getElementById('qa-mode-new');
+  const btnPull = document.getElementById('qa-mode-pull');
+  btnNew.style.background  = mode==='new'  ? 'var(--green)' : 'var(--surface)';
+  btnNew.style.color       = mode==='new'  ? '#fff' : 'var(--text-secondary)';
+  btnNew.style.borderColor = mode==='new'  ? 'var(--green)' : 'var(--border)';
+  btnPull.style.background  = mode==='pull' ? 'var(--green)' : 'var(--surface)';
+  btnPull.style.color       = mode==='pull' ? '#fff' : 'var(--text-secondary)';
+  btnPull.style.borderColor = mode==='pull' ? 'var(--green)' : 'var(--border)';
+  document.getElementById('qa-save-btn').textContent = mode === 'pull' ? 'Add Selected' : 'Save Action';
+}
+
+function qaPullMeetingChanged() {
+  const mtgId = document.getElementById('qa-pull-meeting').value;
+  const container = document.getElementById('qa-pull-actions');
+  if (!mtgId) { container.innerHTML = ''; return; }
+  const mtg = meetings.find(m => m.id === mtgId);
+  if (!mtg || !(mtg.actions||[]).length) {
+    container.innerHTML = '<div style="font-size:13px;color:var(--text-muted);padding:8px 0">No action items in this meeting.</div>';
+    return;
+  }
+  container.innerHTML = (mtg.actions||[]).filter(a=>a.action&&a.action.trim()).map((a,ai)=>`
+    <label style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:var(--white);border:1px solid var(--border);border-radius:8px;cursor:pointer">
+      <input type="checkbox" class="qa-pull-cb" data-mtgid="${escHtml(mtgId)}" data-ai="${ai}" style="margin-top:3px;flex-shrink:0" />
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--text-primary)">${escHtml(a.action)}</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${a.owner?'👤 '+escHtml(a.owner):''}${a.due?' · 📅 '+a.due:''}</div>
+      </div>
+    </label>`).join('');
+}
+
+function saveQuickAction() {
+  if (_qaMode === 'pull') {
+    const checked = Array.from(document.querySelectorAll('.qa-pull-cb:checked'));
+    if (!checked.length) { alert('Select at least one action item to add.'); return; }
+    checked.forEach(cb => {
+      const mtgId = cb.dataset.mtgid;
+      const ai = parseInt(cb.dataset.ai);
+      const mtg = meetings.find(m => m.id === mtgId);
+      if (!mtg || !mtg.actions[ai]) return;
+      const a = mtg.actions[ai];
+      const plan = { id:'plan-act-'+Date.now()+'-'+Math.random().toString(36).slice(2,6),
+        createdDate: new Date().toISOString().split('T')[0],
+        name: a.action, title: '', actions:[{...a}], _src:'planning' };
+      planningItems.push(plan);
+    });
+    persistPlanning();
+    renderActSummary();
+    closeQuickActionModal();
+    return;
+  }
+  const action = document.getElementById('qa-action').value.trim();
+  if (!action) { alert('Please describe the action item.'); return; }
+  const owner  = document.getElementById('qa-owner').value.trim();
+  const due    = document.getElementById('qa-due').value;
+  const status = document.getElementById('qa-status').value;
+  const mtgId  = document.getElementById('qa-meeting').value;
+  const linkedIntervention = document.getElementById('qa-intervention').value;
+  const act = { action, owner, due, status, outcome:'', linkedProject:'', linkedIntervention };
+  if (mtgId) {
+    const mtg = meetings.find(m => m.id === mtgId);
+    if (mtg) { mtg.actions = mtg.actions||[]; mtg.actions.push(act); persistMeetings(); }
+  } else {
+    const plan = { id:'plan-act-'+Date.now()+'-'+Math.random().toString(36).slice(2,6),
+      createdDate: new Date().toISOString().split('T')[0],
+      name: action, title: linkedIntervention||'', actions:[act], _src:'planning' };
+    planningItems.push(plan);
+    persistPlanning();
+  }
+  renderActSummary(); renderLog();
+  closeQuickActionModal();
 }
 
 function openQuickIntModal() {
