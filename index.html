@@ -2093,6 +2093,10 @@ function popDropdownsHTML(prefix, vals) {
         <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">GPA Grouping</label>
         <select class="${prefix}-gpa" style="width:100%">${selOpts(GPA_GROUPS, vals.gpa)}</select>
       </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px"># of Students</label>
+        <input type="number" min="0" class="${prefix}-count" placeholder="e.g. 42" value="${vals.count||''}" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface);box-sizing:border-box" />
+      </div>
       <div class="${prefix}-grad-wrap" style="display:${showGrad?'block':'none'}">
         <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Graduation Detail</label>
         <select class="${prefix}-grad" style="width:100%">${selOpts(GRAD_DETAILS, vals.grad)}</select>
@@ -2112,6 +2116,7 @@ function popValsFromEl(prefix, el) {
     reason: el.querySelector('.' + prefix + '-reason')?.value || '',
     gpa:    el.querySelector('.' + prefix + '-gpa')?.value    || '',
     grad:   el.querySelector('.' + prefix + '-grad')?.value   || '',
+    count:  el.querySelector('.' + prefix + '-count')?.value  || '',
   };
 }
 
@@ -2120,7 +2125,9 @@ function popLabel(v) {
   const parts = [v.type, v.year, v.reason];
   if (v.reason === 'Graduation' && v.grad) parts.push(v.grad);
   parts.push(v.gpa);
-  return parts.filter(Boolean).join(' · ');
+  const label = parts.filter(Boolean).join(' · ');
+  if (v.count) return `${label} · <strong>${v.count} students</strong>`;
+  return label;
 }
 
 let popCount = 0;
@@ -3487,7 +3494,10 @@ function renderIntSummary() {
           <div style="flex:1;min-width:200px">
             ${i.title ? `<div style="font-size:15px;font-weight:700;color:var(--text-primary);margin-bottom:3px">${escHtml(i.title)}</div>` : ''}
             <div style="font-size:13px;color:var(--text-primary);${i.title?'font-weight:400;':'font-weight:600;'}margin-bottom:4px">${escHtml(i.name||'')}</div>
-            <div style="font-size:12px;color:var(--text-secondary)">${typeof i.population === 'object' ? popLabel(i.population) : (i.population || '')}</div>
+            <div style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span>${typeof i.population === 'object' ? popLabel(i.population) : escHtml(i.population || '')}</span>
+              ${(typeof i.population === 'object' && i.population?.count) ? `<span style="font-size:12px;font-weight:700;background:#e8eef7;color:#002D72;border-radius:20px;padding:2px 10px;border:1px solid #c5d3e8">👥 ${escHtml(String(i.population.count))} students</span>` : ''}
+            </div>
           </div>
           <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">
             ${dateLabel}
