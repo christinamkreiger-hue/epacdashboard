@@ -1034,7 +1034,8 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         meetings: window._epacMeetings(),
-        projects: window._epacProjects()
+        projects: window._epacProjects(),
+        planning: window._epacPlanning ? window._epacPlanning() : []
       })
     })
     .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
@@ -1591,8 +1592,10 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
     </div>
     <div style="display:grid;gap:12px">
       <div style="margin-bottom:12px">
-        <label style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);display:block;margin-bottom:4px">Date</label>
-        <input id="qi-date" type="date" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:var(--surface);box-sizing:border-box" />
+        <label style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);display:block;margin-bottom:4px">Link to Meeting <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional — leave blank to save as planning item)</span></label>
+        <select id="qi-meeting-link" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:var(--surface)">
+          <option value="">— None (planning only) —</option>
+        </select>
       </div>
       <div style="margin-bottom:12px">
         <label style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);display:block;margin-bottom:4px">Intervention Title</label>
@@ -1756,6 +1759,13 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
       </div>
 
 
+      <!-- ── Link Planning Items ── -->
+      <div class="modal-section" id="nm-planning-section" style="display:none">
+        <div class="modal-section-title">Link Planning Items to This Meeting</div>
+        <div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px">Check any planning interventions or action items you want to associate with this meeting. They'll be moved from Planning into this meeting's record.</div>
+        <div id="nm-planning-list" style="display:grid;gap:8px"></div>
+      </div>
+
       <!-- SUCCESS STORY -->
       <div style="margin-top:1.5rem">
         <div style="font-weight:600;font-size:15px;color:var(--blue);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px">
@@ -1855,6 +1865,19 @@ try {
   if (saved) meetings = JSON.parse(saved);
 } catch(e) { console.warn('Could not restore meetings:', e); }
 
+// ── PLANNING ITEMS store (interventions/actions not yet tied to a meeting) ──
+let planningItems = [];
+try {
+  const savedPlan = localStorage.getItem('epac-planning');
+  if (savedPlan) planningItems = JSON.parse(savedPlan);
+} catch(e) { console.warn('Could not restore planningItems:', e); }
+
+function persistPlanning() {
+  try { localStorage.setItem('epac-planning', JSON.stringify(planningItems)); } catch(e) {}
+  if (typeof saveToSheet === 'function') saveToSheet();
+}
+window._epacPlanning = function() { return planningItems; };
+
 // Helper accessors for the sync layer
 window._epacMeetings = function() { return meetings; };
 
@@ -1887,9 +1910,15 @@ function _applyCloudData(data) {
     } catch(e) {}
     changed = true;
   }
+  if (data.planning && Array.isArray(data.planning) && data.planning.length > 0) {
+    planningItems = data.planning;
+    try { localStorage.setItem('epac-planning', JSON.stringify(planningItems)); } catch(e) {}
+    changed = true;
+  }
   if (changed) {
     if (typeof renderLog === 'function') renderLog();
     if (typeof renderActSummary === 'function') renderActSummary();
+    if (typeof renderIntSummary === 'function') renderIntSummary();
     if (typeof renderDashboard === 'function') renderDashboard();
     if (typeof renderProjects === 'function') renderProjects();
   }
@@ -1909,7 +1938,7 @@ window.cloudSaveWithFeedback = function(btn) {
   fetch('https://epac-sync.christina-m-kreiger.workers.dev', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ meetings: window._epacMeetings(), projects: window._epacProjects() })
+    body: JSON.stringify({ meetings: window._epacMeetings(), projects: window._epacProjects(), planning: window._epacPlanning ? window._epacPlanning() : [] })
   })
   .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
   .then(() => {
@@ -2828,6 +2857,22 @@ function renderProjects() {
             <option value="Meaningful &amp; Coordinated Communications" ${p.priority==='Meaningful & Coordinated Communications'?'selected':''}>Meaningful &amp; Coordinated Communications</option>
           </select>
         </div>
+        <div style="margin-top:12px;border-top:1px dashed var(--border);padding-top:10px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-secondary);margin-bottom:6px">Action Items</div>
+          <div id="proj-actions-list-${i}" style="display:grid;gap:6px">
+            ${(p.actions||[]).map((a,ai)=>`<div class="proj-action-row" style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:6px;align-items:center">
+              <input type="text" class="pra-action" value="${escHtml(a.action||'')}" placeholder="Action…" style="font-size:13px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);font-family:inherit" />
+              <input type="text" class="pra-owner" value="${escHtml(a.owner||'')}" placeholder="Owner…" style="font-size:13px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);font-family:inherit" />
+              <input type="date" class="pra-due" value="${escHtml(a.due||'')}" style="font-size:13px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);font-family:inherit" />
+              <select class="pra-meeting" style="font-size:12px;padding:5px 6px;border:1px solid var(--border);border-radius:6px;background:var(--surface);font-family:inherit">
+                <option value="">— Meeting —</option>
+                ${meetings.slice().reverse().map(m=>`<option value="${escHtml(m.date)}" ${a.linkedMeeting===m.date?'selected':''}>${escHtml(m.date+(m.weekLabel?' · '+m.weekLabel:''))}</option>`).join('')}
+              </select>
+              <button onclick="this.closest('.proj-action-row').remove()" style="background:none;border:1px solid #e0b0b0;border-radius:6px;color:#c0392b;cursor:pointer;padding:4px 8px;font-size:14px;font-family:inherit">✕</button>
+            </div>`).join('')}
+          </div>
+          <button onclick="projAddAction(${i})" style="margin-top:6px;font-size:12px;padding:5px 12px;background:var(--blue-pale);color:var(--blue);border:1px solid var(--blue-light);border-radius:6px;cursor:pointer;font-weight:600;font-family:inherit"><span>+</span> Add Action Item</button>
+        </div>
         <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px">
           <button onclick="cancelEditProject(${i})"
             style="background:none;color:var(--text-secondary);border:1px solid var(--border);border-radius:6px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">
@@ -2872,6 +2917,22 @@ function renderProjects() {
         </div>` : ''}
         ${p.priority ? `<div style="margin-top:8px">
           <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--green);background:#eef7f2;border:1px solid #b6deca;border-radius:20px;padding:3px 10px">★ ${escHtml(p.priority)}</span>
+        </div>` : ''}
+        ${(p.actions||[]).filter(a=>a.action&&a.action.trim()).length ? `<div style="margin-top:12px;border-top:1px dashed var(--border);padding-top:10px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-secondary);margin-bottom:6px">Action Items</div>
+          <div style="display:grid;gap:6px">
+            ${(p.actions||[]).filter(a=>a.action&&a.action.trim()).map((a,ai)=>{
+              const sc2 = a.status==='done'?'var(--green)':a.status==='hold'?'var(--gold)':'var(--blue)';
+              const sl2 = a.status==='done'?'Complete':a.status==='hold'?'On Hold':'In Progress';
+              return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--surface);border:1px solid var(--border);border-left:3px solid ${sc2};border-radius:0 6px 6px 0;flex-wrap:wrap">
+                <div style="flex:1;min-width:140px;font-size:13px;font-weight:600;color:var(--text-primary)">${escHtml(a.action)}</div>
+                ${a.owner?`<span style="font-size:11px;color:var(--text-secondary)">👤 ${escHtml(a.owner)}</span>`:''}
+                ${a.due?`<span style="font-size:11px;color:var(--text-secondary)">📅 ${escHtml(a.due)}</span>`:''}
+                ${a.linkedMeeting?`<span style="font-size:11px;font-weight:600;background:var(--blue-pale);color:var(--blue);border-radius:20px;padding:2px 8px;border:1px solid var(--blue-light)">🗓 ${escHtml(a.linkedMeeting)}</span>`:''}
+                <span style="font-size:11px;font-weight:700;color:${sc2}">${sl2}</span>
+              </div>`;
+            }).join('')}
+          </div>
         </div>` : ''}`;
     }
     list.appendChild(card);
@@ -2895,10 +2956,46 @@ function cancelEditProject(i) {
   renderProjects();
 }
 
+function projAddAction(i) {
+  const list = document.getElementById('proj-actions-list-' + i);
+  if (!list) return;
+  const row = document.createElement('div');
+  row.className = 'proj-action-row';
+  row.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:6px;align-items:center';
+  row.innerHTML = `
+    <input type="text" class="pra-action" placeholder="Action…" style="font-size:13px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);font-family:inherit" />
+    <input type="text" class="pra-owner" placeholder="Owner…" style="font-size:13px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);font-family:inherit" />
+    <input type="date" class="pra-due" style="font-size:13px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);font-family:inherit" />
+    <select class="pra-meeting" style="font-size:12px;padding:5px 6px;border:1px solid var(--border);border-radius:6px;background:var(--surface);font-family:inherit">
+      <option value="">— Meeting —</option>
+      ${meetings.slice().reverse().map(m=>`<option value="${escHtml(m.date)}">${escHtml(m.date+(m.weekLabel?' · '+m.weekLabel:''))}</option>`).join('')}
+    </select>
+    <button onclick="this.closest('.proj-action-row').remove()" style="background:none;border:1px solid #e0b0b0;border-radius:6px;color:#c0392b;cursor:pointer;padding:4px 8px;font-size:14px;font-family:inherit">✕</button>
+  `;
+  list.appendChild(row);
+}
+
 function saveProjectCard(i) {
+  // Collect action items from the edit form
+  const list = document.getElementById('proj-actions-list-' + i);
+  if (list) {
+    projects[i].actions = Array.from(list.querySelectorAll('.proj-action-row')).map(row => {
+      const act = row.querySelector('.pra-action')?.value || '';
+      if (!act.trim()) return null;
+      return {
+        action: act,
+        owner: row.querySelector('.pra-owner')?.value || '',
+        due: row.querySelector('.pra-due')?.value || '',
+        status: 'progress',
+        linkedMeeting: row.querySelector('.pra-meeting')?.value || '',
+        linkedProject: projects[i].title || ''
+      };
+    }).filter(Boolean);
+  }
   saveProjects();
   delete projectEditMode[i];
   renderProjects();
+  renderActSummary();
 }
 
 function addProject() {
@@ -2971,6 +3068,34 @@ function openNewMeetingModal() {
   // Add one blank intervention and action row to start
   nmAddIntervention();
   nmAddAction();
+
+  // Populate "link planning items" section
+  const planSection = document.getElementById('nm-planning-section');
+  const planList = document.getElementById('nm-planning-list');
+  if (planList) {
+    planList.innerHTML = '';
+    const unlinked = planningItems.filter(p => !p._linkedToMeeting);
+    if (unlinked.length) {
+      planSection.style.display = '';
+      unlinked.forEach((p, rawIdx) => {
+        const realIdx = planningItems.indexOf(p);
+        const div = document.createElement('div');
+        div.style.cssText = 'display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface)';
+        div.innerHTML = `
+          <input type="checkbox" class="nm-plan-link" data-pidx="${realIdx}" style="margin-top:2px;width:16px;height:16px;cursor:pointer;flex-shrink:0" />
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:700;color:var(--text-primary)">${escHtml(p.title||p.name||'Untitled')}</div>
+            ${p.title ? `<div style="font-size:12px;color:var(--text-secondary);margin-top:2px">${escHtml(p.name||'')}</div>` : ''}
+            ${p.actions?.length ? `<div style="font-size:11px;color:var(--text-muted);margin-top:4px">📎 ${p.actions.length} action item${p.actions.length===1?'':'s'}</div>` : ''}
+          </div>
+          <span style="font-size:11px;font-weight:700;background:#fff8e1;color:#b45309;border-radius:20px;padding:2px 8px;border:1px solid #fcd34d;flex-shrink:0">📋 ${escHtml(p.status||'planning')}</span>
+        `;
+        planList.appendChild(div);
+      });
+    } else {
+      planSection.style.display = 'none';
+    }
+  }
 
   document.getElementById('new-meeting-modal').classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -3238,6 +3363,19 @@ function saveNewMeeting() {
     attendance: attendanceData
   };
 
+  // Pull in any checked planning items
+  document.querySelectorAll('#nm-planning-list .nm-plan-link:checked').forEach(cb => {
+    const pi = parseInt(cb.dataset.pidx);
+    const plan = planningItems[pi];
+    if (!plan) return;
+    const planInt = { title: plan.title, name: plan.name, assignedTo: plan.assignedTo, status: plan.status, population: plan.population, metric: plan.metric, priority: plan.priority, hasBarrier: plan.hasBarrier || 'no', barrierDesc: plan.barrierDesc || '', actions: plan.actions || [] };
+    meeting.interventions.push(planInt);
+    meeting.actions.push(...(plan.actions || []).map(a => ({ ...a, linkedIntervention: plan.title || plan.name })));
+    // Mark as linked so it won't re-appear in the planning picker
+    planningItems[pi]._linkedToMeeting = meeting.id;
+  });
+  persistPlanning();
+
   meetings.push(meeting);
   persistMeetings();
   renderLog();
@@ -3268,19 +3406,36 @@ function renderIntSummary() {
   const all = [];
   meetings.forEach((m, mi) => {
     (m.interventions || []).forEach((i, ii) => {
-      if (i.name && i.name.trim()) all.push({ ...i, date: m.date, _mi: mi, _ii: ii });
+      if (i.name && i.name.trim()) all.push({ ...i, date: m.date, _mi: mi, _ii: ii, _src: 'meeting' });
     });
+  });
+  planningItems.forEach((p, pi) => {
+    if (p.name && p.name.trim()) all.push({ ...p, date: p.createdDate || '', _pi: pi, _src: 'planning' });
   });
   if (lbl) lbl.textContent = all.length ? all.length + ' intervention' + (all.length === 1 ? '' : 's') + ' on record' : '';
   if (!all.length) {
-    el.innerHTML = '<div class="empty-state"><span>📢</span>No interventions logged yet. Add them through a meeting entry.</div>';
+    el.innerHTML = '<div class="empty-state"><span>📢</span>No interventions logged yet. Use "Log an Intervention" to add one.</div>';
     return;
   }
+
+  function statusBadge(s) {
+    if (!s || s === 'planning') return '<span style="font-size:11px;font-weight:700;background:#fff8e1;color:#b45309;border-radius:20px;padding:3px 10px;border:1px solid #fcd34d">📋 Planning</span>';
+    if (s === 'progress') return '<span style="font-size:11px;font-weight:700;background:#e8eef7;color:#002D72;border-radius:20px;padding:3px 10px;border:1px solid #c5d3e8">🔄 In Progress</span>';
+    if (s === 'completed') return '<span style="font-size:11px;font-weight:700;background:#eef7f2;color:#007749;border-radius:20px;padding:3px 10px;border:1px solid #b6deca">✅ Completed</span>';
+    return '';
+  }
+
   el.innerHTML = all.slice().reverse().map(i => {
     const assignees = (i.assignedTo || '').split(',').map(s=>s.trim()).filter(Boolean);
-    const editBtn = window.isEditMode ? `<button class="btn btn-sm" style="font-size:12px;padding:3px 10px" onclick="openIntEditPanel(${i._mi},${i._ii},this)"><span style="font-size:13px">✎</span> Edit</button>` : '';
+    const isPlan = i._src === 'planning';
+    const editBtn = window.isEditMode
+      ? (isPlan
+          ? `<button class="btn btn-sm" style="font-size:12px;padding:3px 10px" onclick="openPlanEditPanel(${i._pi},this)"><span style="font-size:13px">✎</span> Edit</button>`
+          : `<button class="btn btn-sm" style="font-size:12px;padding:3px 10px" onclick="openIntEditPanel(${i._mi},${i._ii},this)"><span style="font-size:13px">✎</span> Edit</button>`)
+      : '';
+    const dateLabel = i.date ? `<span style="font-size:11px;color:var(--text-muted);white-space:nowrap">📅 ${i.date}</span>` : `<span style="font-size:11px;color:var(--text-muted);white-space:nowrap;font-style:italic">📋 Planning</span>`;
     return `
-    <div class="card int-summary-card" data-mi="${i._mi}" data-ii="${i._ii}" style="margin-bottom:8px;border-left:4px solid var(--blue);padding:12px 14px">
+    <div class="card int-summary-card" ${isPlan ? `data-pi="${i._pi}"` : `data-mi="${i._mi}" data-ii="${i._ii}"`} style="margin-bottom:8px;border-left:4px solid ${isPlan ? '#b45309' : 'var(--blue)'};padding:12px 14px">
       <div class="int-view-mode">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
           <div style="flex:1;min-width:200px">
@@ -3288,8 +3443,9 @@ function renderIntSummary() {
             <div style="font-size:13px;color:var(--text-primary);${i.title?'font-weight:400;':'font-weight:600;'}margin-bottom:4px">${escHtml(i.name||'')}</div>
             <div style="font-size:12px;color:var(--text-secondary)">${typeof i.population === 'object' ? popLabel(i.population) : (i.population || '')}</div>
           </div>
-          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-            <div style="font-size:11px;color:var(--text-muted);white-space:nowrap">📅 ${i.date || ''}</div>
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">
+            ${dateLabel}
+            ${statusBadge(i.status)}
             ${editBtn}
           </div>
         </div>
@@ -3298,7 +3454,6 @@ function renderIntSummary() {
           ${assignees.map(a=>`<span style="font-size:11px;font-weight:600;background:var(--surface);color:var(--text-primary);border-radius:20px;padding:3px 10px;border:1px solid var(--border)">${escHtml(a)}</span>`).join('')}
         </div>` : ''}
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center">
-          ${(()=>{ const s=i.status||''; if(!s||s==='planning') return '<span style="font-size:11px;font-weight:700;background:#fff8e1;color:#b45309;border-radius:20px;padding:3px 10px;border:1px solid #fcd34d">📋 Planning</span>'; if(s==='progress') return '<span style="font-size:11px;font-weight:700;background:#e8eef7;color:#002D72;border-radius:20px;padding:3px 10px;border:1px solid #c5d3e8">🔄 In Progress</span>'; if(s==='completed') return '<span style="font-size:11px;font-weight:700;background:#eef7f2;color:#007749;border-radius:20px;padding:3px 10px;border:1px solid #b6deca">✅ Completed</span>'; return ''; })()}
           ${i.metric ? `<span style="font-size:11px;font-weight:700;background:#e8eef7;color:#002D72;border-radius:20px;padding:3px 10px;border:1px solid #c5d3e8">📊 ${i.metric}</span>` : ''}
           ${i.priority ? `<span style="font-size:11px;font-weight:700;background:#eef7f2;color:#007749;border-radius:20px;padding:3px 10px;border:1px solid #b6deca">★ ${i.priority}</span>` : ''}
           ${i.hasBarrier === 'yes' ? '<span class="log-int-barrier-tag">⚑ Barrier</span>' : ''}
@@ -3438,6 +3593,95 @@ function saveIntEdit(mi, ii, btn) {
   renderLog();
 }
 
+/* ── PLANNING ITEM EDIT PANEL ── */
+function openPlanEditPanel(pi, btn) {
+  const card = btn.closest('.int-summary-card');
+  const viewDiv = card.querySelector('.int-view-mode');
+  const editDiv = card.querySelector('.int-edit-mode');
+  if (editDiv.style.display !== 'none') {
+    editDiv.style.display = 'none';
+    viewDiv.style.display = '';
+    btn.innerHTML = '<span style="font-size:13px">✎</span> Edit';
+    return;
+  }
+  const p = planningItems[pi];
+  if (!p) return;
+  editDiv.innerHTML = `
+    <div style="display:grid;gap:10px">
+      <div>
+        <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Title</label>
+        <input class="ipe-title" type="text" value="${escHtml(p.title||'')}" placeholder="Short title…" style="width:100%" />
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Details / Description</label>
+        <input class="ipe-name" type="text" value="${escHtml(p.name||'')}" placeholder="Describe the intervention…" style="width:100%" />
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Assigned To</label>
+        <input class="ipe-assigned" type="text" value="${escHtml(p.assignedTo||'')}" placeholder="Names or roles (comma-separated)…" style="width:100%" />
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Status</label>
+        <select class="ipe-status" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface)">
+          <option value="planning" ${(p.status||'planning')==='planning'?'selected':''}>📋 Planning</option>
+          <option value="progress" ${p.status==='progress'?'selected':''}>🔄 In Progress</option>
+          <option value="completed" ${p.status==='completed'?'selected':''}>✅ Completed</option>
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div>
+          <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Linked PBF Metric</label>
+          <select class="ipe-metric" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface)">${metricOpts(p.metric||'')}</select>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Strategic Priority</label>
+          <select class="ipe-priority" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface)">${priorityOpts(p.priority||'')}</select>
+        </div>
+      </div>
+      <div style="border-top:1px dashed var(--border);padding-top:10px;margin-top:4px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);margin-bottom:6px">Action Items</div>
+        <div class="ipe-actions-list" style="display:grid;gap:6px">
+          ${(p.actions||[]).map(a=>`<div class="ipe-action-row" style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:6px;align-items:center">
+            <input type="text" class="ipea-action" value="${escHtml(a.action||'')}" placeholder="Action…" style="font-size:13px" />
+            <input type="text" class="ipea-owner" value="${escHtml(a.owner||'')}" placeholder="Owner…" style="font-size:13px" />
+            <input type="date" class="ipea-due" value="${escHtml(a.due||'')}" style="font-size:13px" />
+            <select class="ipea-status" style="font-size:13px">${STATUS_OPTS(a.status||'progress')}</select>
+            <button class="btn btn-sm btn-danger" onclick="this.closest('.ipe-action-row').remove()"><span>✕</span></button>
+          </div>`).join('')}
+        </div>
+        <button class="btn btn-sm" style="margin-top:6px;font-size:12px;background:var(--blue-pale);color:var(--blue);border-color:var(--blue-light)" onclick="ipeAddAction(this)"><span>+</span> Add Action Item</button>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
+        <button class="btn btn-sm" onclick="openPlanEditPanel(${pi},this)">Cancel</button>
+        <button class="btn btn-sm btn-primary" style="background:var(--blue);color:#fff;border-color:var(--blue)" onclick="savePlanEdit(${pi},this)"><span>💾</span> Save</button>
+      </div>
+    </div>`;
+  viewDiv.style.display = 'none';
+  editDiv.style.display = '';
+  btn.innerHTML = '✕ Close';
+}
+
+function savePlanEdit(pi, btn) {
+  const card = btn.closest('.int-summary-card');
+  const editDiv = card.querySelector('.int-edit-mode');
+  const p = planningItems[pi];
+  if (!p) return;
+  p.title = editDiv.querySelector('.ipe-title').value.trim() || p.title;
+  p.name = editDiv.querySelector('.ipe-name').value.trim();
+  p.assignedTo = editDiv.querySelector('.ipe-assigned').value.trim();
+  p.status = editDiv.querySelector('.ipe-status').value;
+  p.metric = editDiv.querySelector('.ipe-metric').value;
+  p.priority = editDiv.querySelector('.ipe-priority').value;
+  p.actions = Array.from(editDiv.querySelectorAll('.ipe-action-row')).map(row => {
+    const act = row.querySelector('.ipea-action')?.value || '';
+    if (!act.trim()) return null;
+    return { action: act, owner: row.querySelector('.ipea-owner')?.value||'', due: row.querySelector('.ipea-due')?.value||'', status: row.querySelector('.ipea-status')?.value||'progress', outcome: '', linkedProject: '', linkedIntervention: p.title };
+  }).filter(Boolean);
+  persistPlanning();
+  renderIntSummary();
+  renderActSummary();
+}
+
 /* ── ACTION SUMMARY LIST ── */
 function renderActSummary() {
   const el = document.getElementById('act-summary-list');
@@ -3447,7 +3691,17 @@ function renderActSummary() {
   const all = [];
   meetings.forEach((m, mi) => {
     (m.actions || []).forEach((a, ai) => {
-      if (a.action && a.action.trim()) all.push({ ...a, meetingIdx: mi, actionIdx: ai, date: m.date, weekLabel: m.weekLabel });
+      if (a.action && a.action.trim()) all.push({ ...a, meetingIdx: mi, actionIdx: ai, date: m.date, weekLabel: m.weekLabel, _src: 'meeting' });
+    });
+  });
+  projects.forEach((p, pi) => {
+    (p.actions || []).forEach((a, ai) => {
+      if (a.action && a.action.trim()) all.push({ ...a, projectIdx: pi, actionIdx: ai, date: a.linkedMeeting || '', weekLabel: '', linkedProject: p.title, _src: 'project' });
+    });
+  });
+  planningItems.forEach((p, pi) => {
+    (p.actions || []).forEach((a, ai) => {
+      if (a.action && a.action.trim()) all.push({ ...a, planIdx: pi, actionIdx: ai, date: '', weekLabel: '', linkedIntervention: p.title || p.name, _src: 'planning' });
     });
   });
 
@@ -3475,23 +3729,31 @@ function renderActSummary() {
   const disStyle = window.isEditMode ? '' : 'opacity:.6;pointer-events:none';
 
   el.innerHTML = filtered.slice().reverse().map(a => {
-    const mi = a.meetingIdx, ai = a.actionIdx;
+    const isProj = a._src === 'project';
+    const isPlan = a._src === 'planning';
+    const mi = a.meetingIdx, projI = a.projectIdx, planI = a.planIdx, ai = a.actionIdx;
+    const onChgAction  = isProj ? `updateProjectAction(${projI},${ai},'action',this.value)`  : isPlan ? `updatePlanningAction(${planI},${ai},'action',this.value)` : `updateAction(${mi},${ai},'action',this.value)`;
+    const onChgStatus  = isProj ? `updateProjectAction(${projI},${ai},'status',this.value)`  : isPlan ? `updatePlanningAction(${planI},${ai},'status',this.value)` : `updateAction(${mi},${ai},'status',this.value)`;
+    const onChgOwner   = isProj ? `updateProjectAction(${projI},${ai},'owner',this.value)`   : isPlan ? `updatePlanningAction(${planI},${ai},'owner',this.value)` : `updateAction(${mi},${ai},'owner',this.value)`;
+    const onChgDue     = isProj ? `updateProjectAction(${projI},${ai},'due',this.value)`     : isPlan ? `updatePlanningAction(${planI},${ai},'due',this.value)` : `updateAction(${mi},${ai},'due',this.value)`;
     const projOpts = projects.length
       ? '<option value="">— None —</option>' + projects.map(p=>`<option value="${escHtml(p.title)}"${p.title===a.linkedProject?' selected':''}>${escHtml(p.title)}</option>`).join('')
       : '<option value="">No projects saved</option>';
+    const dateLabel = isPlan ? '<span style="font-size:11px;color:#b45309;font-style:italic">📋 Planning (no meeting)</span>'
+      : `<span style="font-size:11px;color:var(--text-muted)">📅 ${a.date||'No date'}${a.weekLabel?' · '+a.weekLabel:''}</span>`;
     return `
     <div class="card" style="margin-bottom:10px;border-left:4px solid ${statusColor(a.status)};padding:14px 16px">
       <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
         <div style="flex:1;min-width:200px">
           <input type="text" value="${escHtml(a.action)}" placeholder="Action…" ${dis}
-            style="width:100%;font-size:14px;font-weight:600;border:none;border-bottom:1px solid var(--border);background:transparent;padding:2px 0;margin-bottom:6px;color:var(--text-primary);${disStyle}"
-            onchange="updateAction(${mi},${ai},'action',this.value)" />
+            style="width:100%;font-size:14px;font-weight:600;border:none;border-bottom:1px solid var(--border);background:transparent;padding:2px 0;margin-bottom:6px;color:var(--text-primary);white-space:normal;word-break:break-word;${disStyle}"
+            onchange="${onChgAction}" />
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:4px">
-            <span style="font-size:11px;color:var(--text-muted)">📅 ${a.date||'No date'}${a.weekLabel?' · '+a.weekLabel:''}</span>
+            ${dateLabel}
           </div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;flex-shrink:0">
-          <select onchange="updateAction(${mi},${ai},'status',this.value)" ${dis}
+          <select onchange="${onChgStatus}" ${dis}
             style="font-size:12px;font-weight:700;padding:4px 8px;border-radius:20px;border:1px solid ${statusColor(a.status)};color:${statusColor(a.status)};background:transparent;cursor:${window.isEditMode?'pointer':'default'};${disStyle}">
             ${STATUS_OPTS(a.status)}
           </select>
@@ -3502,22 +3764,32 @@ function renderActSummary() {
           <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);display:block;margin-bottom:3px">Owner</label>
           <input type="text" value="${escHtml(a.owner||'')}" placeholder="Owner…" ${dis}
             style="width:100%;font-size:13px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);${disStyle}"
-            onchange="updateAction(${mi},${ai},'owner',this.value)" />
+            onchange="${onChgOwner}" />
         </div>
         <div>
           <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);display:block;margin-bottom:3px">Due date</label>
           <input type="date" value="${a.due||''}" ${dis}
             style="width:100%;font-size:13px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);${disStyle}"
-            onchange="updateAction(${mi},${ai},'due',this.value)" />
+            onchange="${onChgDue}" />
         </div>
         <div>
-          <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);display:block;margin-bottom:3px">Linked project</label>
-          <select style="width:100%;font-size:13px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);${disStyle}"
-            onchange="updateAction(${mi},${ai},'linkedProject',this.value)" ${dis}>${projOpts}</select>
+          ${isProj
+            ? `<label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);display:block;margin-bottom:3px">Linked meeting</label>
+               <div style="font-size:13px;color:var(--text-secondary);padding:5px 0">${a.linkedMeeting ? `🗓 ${escHtml(a.linkedMeeting)}` : '—'}</div>`
+            : isPlan
+            ? `<label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);display:block;margin-bottom:3px">Source</label>
+               <div style="font-size:13px;color:#b45309;padding:5px 0">📋 Planning item</div>`
+            : `<label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);display:block;margin-bottom:3px">Linked project</label>
+               <select style="width:100%;font-size:13px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);${disStyle}"
+                 onchange="updateAction(${mi},${ai},'linkedProject',this.value)" ${dis}>${projOpts}</select>`
+          }
         </div>
       </div>
       ${a.outcome ? `<div style="margin-top:8px;font-size:12px;color:var(--text-secondary);font-style:italic">Expected outcome: ${escHtml(a.outcome)}</div>` : ''}
-      ${a.linkedIntervention ? `<div style="margin-top:6px"><span style="font-size:11px;font-weight:700;background:#f0eafa;color:#5b2d8e;border-radius:20px;padding:3px 10px;border:1px solid #d4baf5">🔗 ${escHtml(a.linkedIntervention)}</span></div>` : ''}
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+        ${a.linkedIntervention ? `<span style="font-size:11px;font-weight:700;background:#f0eafa;color:#5b2d8e;border-radius:20px;padding:3px 10px;border:1px solid #d4baf5">🔗 ${escHtml(a.linkedIntervention)}</span>` : ''}
+        ${isProj ? `<span style="font-size:11px;font-weight:700;background:var(--blue-pale);color:var(--blue);border-radius:20px;padding:3px 10px;border:1px solid var(--blue-light)">📁 ${escHtml(a.linkedProject)}</span>` : ''}
+      </div>
     </div>`;
   }).join('');
 }
@@ -3526,13 +3798,26 @@ function updateAction(meetingIdx, actionIdx, field, value) {
   if (!meetings[meetingIdx] || !meetings[meetingIdx].actions[actionIdx]) return;
   meetings[meetingIdx].actions[actionIdx][field] = value;
   persistMeetings();
-  // Re-render log badges without re-rendering the whole action list (would reset inputs)
   renderLog();
-  // Re-render border color if status changed, and auto-sync to cloud
   if (field === 'status') {
     renderActSummary();
     if (typeof window.saveToSheet === 'function') window.saveToSheet();
   }
+}
+
+function updateProjectAction(projectIdx, actionIdx, field, value) {
+  if (!projects[projectIdx] || !projects[projectIdx].actions?.[actionIdx]) return;
+  projects[projectIdx].actions[actionIdx][field] = value;
+  saveProjects();
+  renderProjects();
+  if (field === 'status') renderActSummary();
+}
+
+function updatePlanningAction(planIdx, actionIdx, field, value) {
+  if (!planningItems[planIdx] || !planningItems[planIdx].actions?.[actionIdx]) return;
+  planningItems[planIdx].actions[actionIdx][field] = value;
+  persistPlanning();
+  if (field === 'status') renderActSummary();
 }
 
 /* ── STORY SUMMARY LIST ── */
@@ -3578,7 +3863,11 @@ function openQuickIntModal() {
   const m = document.getElementById('quick-int-modal');
   m.style.display = 'flex';
   document.body.style.overflow = 'hidden';
-  document.getElementById('qi-date').value = new Date().toISOString().split('T')[0];
+  // Populate meeting-link dropdown
+  const mlSel = document.getElementById('qi-meeting-link');
+  mlSel.innerHTML = '<option value="">— None (planning only) —</option>' +
+    meetings.slice().reverse().map(mt => `<option value="${escHtml(mt.id)}">${escHtml(mt.date + (mt.weekLabel ? ' · ' + mt.weekLabel : ''))}</option>`).join('');
+  mlSel.value = '';
   document.getElementById('qi-title').value = '';
   document.getElementById('qi-name').value = '';
   document.getElementById('qi-assigned').value = '';
@@ -3597,20 +3886,35 @@ function closeQuickIntModal() {
   document.body.style.overflow = '';
 }
 function saveQuickInt() {
-  const date = document.getElementById('qi-date').value;
   const name = document.getElementById('qi-name').value.trim();
-  if (!date) { alert('Please enter a date.'); return; }
   if (!name) { alert('Please describe the intervention.'); return; }
   const intTitle = document.getElementById('qi-title').value.trim();
+  const intStatus = document.getElementById('qi-int-status')?.value || 'planning';
   const qiActs = Array.from(document.querySelectorAll('#qi-actions-list .qi-action-row')).map(row => {
     const act = row.querySelector('.qia-action')?.value || '';
     if (!act.trim()) return null;
     return { action: act, owner: row.querySelector('.qia-owner')?.value||'', due: row.querySelector('.qia-due')?.value||'', status: 'progress', outcome: '', linkedProject: '', linkedIntervention: intTitle };
   }).filter(Boolean);
-  const intervention = { title: intTitle, name, assignedTo: document.getElementById('qi-assigned').value.trim(), status: document.getElementById('qi-int-status')?.value || 'planning', population: popValsFromEl('qi-pop', document.getElementById('qi-pop-wrap')), metric: document.getElementById('qi-metric')?.value || '', priority: document.getElementById('qi-priority')?.value || '', hasBarrier: 'no', barrierDesc: '', actions: qiActs };
-  const meeting = { id: 'mtg-qi-' + Date.now(), date, weekLabel: '', notes: '', dashboard: { apr:'', fticTotal:'', fticRegAbove:'', fticRegBelow:'', fticUnregAbove:'', fticUnregBelow:'', fticNotes:'', gradNotes:'', g4ftic:{}, g3aa:{}, g6pell:{}, g4xfer:{} }, barriers: [], populations: [], interventions: [intervention], actions: qiActs, story: { type:'', text:'', teller:'' }, attendance: { members:[], guests:[], total:0 } };
-  meetings.push(meeting);
-  persistMeetings();
+  const intervention = { title: intTitle, name, assignedTo: document.getElementById('qi-assigned').value.trim(), status: intStatus, population: popValsFromEl('qi-pop', document.getElementById('qi-pop-wrap')), metric: document.getElementById('qi-metric')?.value || '', priority: document.getElementById('qi-priority')?.value || '', hasBarrier: 'no', barrierDesc: '', actions: qiActs };
+
+  const linkedMeetingId = document.getElementById('qi-meeting-link').value;
+  if (linkedMeetingId) {
+    // Add to existing meeting record
+    const mtg = meetings.find(m => m.id === linkedMeetingId);
+    if (mtg) {
+      mtg.interventions = mtg.interventions || [];
+      mtg.interventions.push(intervention);
+      mtg.actions = mtg.actions || [];
+      mtg.actions.push(...qiActs);
+      persistMeetings();
+    }
+  } else {
+    // Save as standalone planning item (no meeting created)
+    const plan = { id: 'plan-' + Date.now(), createdDate: new Date().toISOString().split('T')[0], ...intervention };
+    planningItems.push(plan);
+    persistPlanning();
+  }
+
   renderLog(); renderIntSummary(); renderActSummary(); renderStorySummary();
   closeQuickIntModal();
 }
@@ -3766,7 +4070,7 @@ function forcePushToSync() {
   fetch('https://api.jsonbin.io/v3/b/' + _BID, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', 'X-Master-Key': _AK },
-    body: JSON.stringify({ meetings: meetingsData, projects: projectsData })
+    body: JSON.stringify({ meetings: meetingsData, projects: projectsData, planning: window._epacPlanning ? window._epacPlanning() : [] })
   })
   .then(r => r.json())
   .then(() => {
