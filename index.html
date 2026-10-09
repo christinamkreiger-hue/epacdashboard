@@ -1993,12 +1993,22 @@ try {
   const saved = localStorage.getItem('epac_meetings');
   if (saved) meetings = JSON.parse(saved);
   // Cleanup: remove intervention-sourced actions from m.actions (they live in m.interventions[].actions)
-  // Also deduplicate any remaining actions by action text+owner+due to fix legacy doubles
+  // Also deduplicate interventions by title+name, and deduplicate actions by content
   meetings.forEach(m => {
+    // Deduplicate interventions by title+name
+    if (Array.isArray(m.interventions)) {
+      const seenInt = new Set();
+      m.interventions = m.interventions.filter(i => {
+        const key = (i.title||'').trim() + '|' + (i.name||'').trim();
+        if (!key || key === '|') return true;
+        if (seenInt.has(key)) return false;
+        seenInt.add(key);
+        return true;
+      });
+    }
+    // Strip intervention-sourced actions and deduplicate remaining
     if (Array.isArray(m.actions)) {
-      // First strip any with linkedIntervention set
       m.actions = m.actions.filter(a => !(a.linkedIntervention && a.linkedIntervention.trim()));
-      // Then deduplicate by action text + owner + due (keeps first occurrence)
       const seen = new Set();
       m.actions = m.actions.filter(a => {
         const key = (a.action||'').trim() + '|' + (a.owner||'') + '|' + (a.due||'');
@@ -2045,8 +2055,18 @@ function _applyCloudData(data) {
   let changed = false;
   if (data.meetings && Array.isArray(data.meetings) && data.meetings.length > 0) {
     meetings = data.meetings;
-    // Cleanup: strip intervention-sourced duplicates from m.actions; also dedup by content
+    // Cleanup: dedup interventions, strip intervention-sourced actions, dedup actions
     meetings.forEach(m => {
+      if (Array.isArray(m.interventions)) {
+        const seenInt = new Set();
+        m.interventions = m.interventions.filter(i => {
+          const key = (i.title||'').trim() + '|' + (i.name||'').trim();
+          if (!key || key === '|') return true;
+          if (seenInt.has(key)) return false;
+          seenInt.add(key);
+          return true;
+        });
+      }
       if (Array.isArray(m.actions)) {
         m.actions = m.actions.filter(a => !(a.linkedIntervention && a.linkedIntervention.trim()));
         const seen = new Set();
@@ -3010,6 +3030,18 @@ function saveBarrierUpdates() {
     persistPlanning();
   }
   document.body._pendingSourceRemovals = [];
+
+  // Dedup interventions on save (belt-and-suspenders)
+  if (Array.isArray(m.interventions)) {
+    const seenInt = new Set();
+    m.interventions = m.interventions.filter(i => {
+      const key = (i.title||'').trim() + '|' + (i.name||'').trim();
+      if (!key || key === '|') return true;
+      if (seenInt.has(key)) return false;
+      seenInt.add(key);
+      return true;
+    });
+  }
 
   renderLog();
   persistMeetings();
