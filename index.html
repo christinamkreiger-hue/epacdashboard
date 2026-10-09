@@ -1992,6 +1992,13 @@ let meetings = [];
 try {
   const saved = localStorage.getItem('epac_meetings');
   if (saved) meetings = JSON.parse(saved);
+  // One-time cleanup: remove intervention-sourced actions from m.actions
+  // (they belong inside m.interventions[].actions, not duplicated in m.actions)
+  meetings.forEach(m => {
+    if (Array.isArray(m.actions)) {
+      m.actions = m.actions.filter(a => !(a.linkedIntervention && a.linkedIntervention.trim()));
+    }
+  });
 } catch(e) { console.warn('Could not restore meetings:', e); }
 
 // ── PLANNING ITEMS store (interventions/actions not yet tied to a meeting) ──
@@ -2029,6 +2036,12 @@ function _applyCloudData(data) {
   let changed = false;
   if (data.meetings && Array.isArray(data.meetings) && data.meetings.length > 0) {
     meetings = data.meetings;
+    // Cleanup: strip intervention-sourced duplicates from m.actions
+    meetings.forEach(m => {
+      if (Array.isArray(m.actions)) {
+        m.actions = m.actions.filter(a => !(a.linkedIntervention && a.linkedIntervention.trim()));
+      }
+    });
     try { localStorage.setItem('epac_meetings', JSON.stringify(meetings)); } catch(e) {}
     changed = true;
   }
@@ -2914,7 +2927,7 @@ function saveBarrierUpdates() {
     updates: div.querySelector('.me-bar-updates')?.value,
   }));
 
-  // Actions — standalone list + any created from interventions
+  // Actions — standalone list only (intervention actions are stored inside each intervention object)
   const standaloneActions = Array.from(document.querySelectorAll('#me-act-list > div')).map(div => ({
     action: div.querySelector('.me-act-action')?.value,
     owner: div.querySelector('.me-act-owner')?.value,
@@ -2924,7 +2937,7 @@ function saveBarrierUpdates() {
     linkedProject: (v => v && v.startsWith('proj:') ? v.slice(5) : '')(div.querySelector('.me-act-link')?.value||''),
     linkedIntervention: (v => v && v.startsWith('int:') ? v.slice(4) : '')(div.querySelector('.me-act-link')?.value||''),
   }));
-  m.actions = [...standaloneActions, ...interventionActionsToMerge];
+  m.actions = standaloneActions;
 
   // Story
   m.story = {
