@@ -2433,8 +2433,8 @@ function renderLog() {
             <div class="log-section-icon" style="background:var(--green-light);color:var(--green)"></div>
             <div><div class="log-section-title">Action Items</div><div class="log-section-sub">Track open items and next steps</div></div>
           </div>
-          ${allActions.map(a=>`<div class="log-action-row" style="border-left-color:${a.status==='done'?'var(--green)':a.status==='hold'?'var(--gold)':a.status==='progress'?'var(--blue)':'var(--blue)'}">
-            <span class="badge ${a.status==='done'?'badge-done':a.status==='hold'?'badge-progress':a.status==='progress'?'badge-open':'badge-open'}" style="flex-shrink:0">${a.status==='done'?'Complete':a.status==='hold'?'On Hold':'In Progress'}</span>
+          ${allActions.map(a=>`<div class="log-action-row" style="border-left-color:${a.status==='done'?'var(--green)':a.status==='hold'?'var(--gold)':a.status==='planning'?'#b45309':'var(--blue)'}">
+            <span class="badge ${a.status==='done'?'badge-done':a.status==='hold'?'badge-progress':a.status==='planning'?'badge-progress':'badge-open'}" style="flex-shrink:0;${a.status==='planning'?'background:#fff7ed;color:#b45309;border-color:#fcd9a0':''}">${a.status==='done'?'Complete':a.status==='hold'?'On Hold':a.status==='planning'?'Planning':'In Progress'}</span>
             <div class="log-action-text">${a.action}</div>
             <div class="log-action-meta">
               ${a.linkedIntervention?`<div style="font-size:11px;font-weight:600;background:#f0eafa;color:#5b2d8e;border-radius:20px;padding:2px 8px;white-space:nowrap;border:1px solid #d4baf5">🔗 ${escHtml(a.linkedIntervention)}</div>`:''}
@@ -2675,12 +2675,13 @@ function openModal(idx) {
           ? '<option value="">— None —</option>' + projects.map(p=>`<option value="${escHtml(p.title)}"${p.title===a.linkedProject?' selected':''}>${escHtml(p.title)}</option>`).join('')
           : '<option value="">No projects saved</option>');
         return `<div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;gap:8px;align-items:start;margin-bottom:8px" id="me-act-${ai}">
-          <input type="text" class="me-act-action" value="${a.action||''}" placeholder="Action…" />
-          <input type="text" class="me-act-owner" value="${a.owner||''}" placeholder="Owner…" />
+          <input type="text" class="me-act-action" value="${escHtml(a.action||'')}" placeholder="Action…" />
+          <input type="text" class="me-act-owner" value="${escHtml(a.owner||'')}" placeholder="Owner…" />
           <input type="date" class="field-input me-act-due" value="${a.due||''}" />
           <select class="me-act-status">${STATUS_OPTS(a.status)}</select>
           <select class="me-act-project" title="Link to project">${projOpts}</select>
-          <input type="text" class="me-act-outcome" value="${a.outcome||''}" placeholder="Expected outcome…" style="grid-column:1/-1" />
+          <button class="btn btn-sm btn-danger" onclick="this.closest('[id^=me-act-]').remove()" title="Remove" style="padding:4px 8px">✕</button>
+          <input type="text" class="me-act-outcome" value="${escHtml(a.outcome||'')}" placeholder="Expected outcome…" style="grid-column:1/-1" />
         </div>`;
       }).join('')}
     </div>
