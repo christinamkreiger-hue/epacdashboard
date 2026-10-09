@@ -2953,8 +2953,9 @@ function saveBarrierUpdates() {
   // Populations (empty — managed via interventions)
   m.populations = [];
 
-  // Interventions
+  // Interventions — read from DOM, deduplicate by title before saving
   const interventionActionsToMerge = [];
+  const seenIntTitles = new Set();
   m.interventions = Array.from(document.querySelectorAll('#me-int-list .sub-card')).map((div,ii) => {
     const intTitle = div.querySelector('.me-int-title')?.value || '';
     const intActions = Array.from(div.querySelectorAll('.me-int-action-row')).map(row => {
@@ -2963,6 +2964,9 @@ function saveBarrierUpdates() {
       return { action: act, owner: row.querySelector('.meia-owner')?.value||'', due: row.querySelector('.meia-due')?.value||'', status: row.querySelector('.meia-status')?.value||'progress', outcome: '', linkedProject: '', linkedIntervention: intTitle };
     }).filter(Boolean);
     interventionActionsToMerge.push(...intActions);
+    const dupKey = intTitle.trim() + '|' + (div.querySelector('.me-int-name')?.value||'').trim();
+    if (dupKey !== '|' && seenIntTitles.has(dupKey)) return null; // skip duplicate
+    seenIntTitles.add(dupKey);
     return {
       title: intTitle,
       name: div.querySelector('.me-int-name')?.value,
@@ -2975,7 +2979,7 @@ function saveBarrierUpdates() {
       barrierDesc: div.querySelector('.me-int-barrier-desc')?.value || '',
       actions: intActions,
     };
-  });
+  }).filter(Boolean);
 
   // Barriers (kept in case legacy data has them)
   m.barriers = Array.from(document.querySelectorAll('#me-bar-list .modal-barrier-item')).map(div => ({
