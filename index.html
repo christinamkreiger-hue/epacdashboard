@@ -3339,18 +3339,22 @@ function mePickExistingAction() {
 
   if (!allActions.length) { alert('No existing action items found.'); return; }
 
-  // Build modal HTML
+  // Build modal HTML — truncate long action text, skip linked intervention URLs
   const rows = allActions.map((a, i) => {
     const src = a._fromMtgDate ? `📅 ${a._fromMtgDate}` : a._fromProj ? `📁 ${a._fromProj}` : `📋 ${a._fromPlan}`;
-    const statusBadge = a.status ? `<span style="font-size:11px;padding:2px 6px;border-radius:4px;background:var(--blue-pale);color:var(--blue)">${escHtml(a.status)}</span>` : '';
-    return `<label style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;margin-bottom:6px;background:var(--surface-1,var(--bg))">
+    const statusColor = {planning:'#6366f1',progress:'#f59e0b',done:'#10b981',hold:'#ef4444'}[a.status] || 'var(--blue)';
+    const statusBg   = {planning:'#ede9fe',progress:'#fef3c7',done:'#d1fae5',hold:'#fee2e2'}[a.status] || 'var(--blue-pale)';
+    const statusBadge = a.status ? `<span style="font-size:11px;padding:2px 7px;border-radius:4px;background:${statusBg};color:${statusColor};font-weight:600">${escHtml(a.status)}</span>` : '';
+    // Truncate action text to 120 chars for display
+    const actionText = a.action.length > 120 ? escHtml(a.action.slice(0,120)) + '<span style="color:var(--text-muted)">…</span>' : escHtml(a.action);
+    return `<label style="display:flex;gap:10px;align-items:flex-start;padding:9px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;margin-bottom:6px;background:var(--surface-1,var(--bg));transition:background .15s" onmouseover="this.style.background='var(--blue-pale)'" onmouseout="this.style.background='var(--surface-1,var(--bg))'">
       <input type="checkbox" value="${i}" style="margin-top:3px;flex-shrink:0">
       <div style="flex:1;min-width:0">
-        <div style="font-size:14px;font-weight:600;color:var(--text-primary)">${escHtml(a.action)}</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;align-items:center">
-          <span style="font-size:12px;color:var(--text-muted)">${src}</span>
-          ${a.owner ? `<span style="font-size:12px;color:var(--text-secondary)">👤 ${escHtml(a.owner)}</span>` : ''}
-          ${a.due ? `<span style="font-size:12px;color:var(--text-secondary)">📆 ${escHtml(a.due)}</span>` : ''}
+        <div style="font-size:13.5px;font-weight:600;color:var(--text-primary);line-height:1.4">${actionText}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:5px;align-items:center">
+          <span style="font-size:11.5px;color:var(--text-muted);font-weight:500">${src}</span>
+          ${a.owner ? `<span style="font-size:11.5px;color:var(--text-secondary)">👤 ${escHtml(a.owner)}</span>` : ''}
+          ${a.due ? `<span style="font-size:11.5px;color:var(--text-secondary)">📆 ${escHtml(a.due)}</span>` : ''}
           ${statusBadge}
         </div>
       </div>
@@ -3359,28 +3363,33 @@ function mePickExistingAction() {
 
   const overlay = document.createElement('div');
   overlay.id = 'me-pick-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px';
   overlay.innerHTML = `
-    <div style="background:var(--bg);border-radius:14px;width:100%;max-width:560px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,.25)">
+    <div style="background:var(--bg);border-radius:14px;width:100%;max-width:560px;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 12px 48px rgba(0,0,0,.3)">
       <div style="padding:16px 20px 12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
-        <div style="font-size:16px;font-weight:700;color:var(--text-primary)">Pull In Existing Action</div>
-        <button onclick="document.getElementById('me-pick-overlay').remove()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted);line-height:1">×</button>
+        <div style="font-size:16px;font-weight:700;color:var(--text-primary)">📋 Pull In Existing Action</div>
+        <button onclick="document.getElementById('me-pick-overlay').remove()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-muted);line-height:1;padding:0 4px">×</button>
       </div>
-      <div style="padding:14px 20px;overflow-y:auto;flex:1">
-        <div style="font-size:13px;color:var(--text-muted);margin-bottom:10px">Select one or more action items to copy into this meeting:</div>
+      <div style="padding:12px 20px 14px;overflow-y:auto;flex:1">
+        <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:10px">Select one or more action items to copy into this meeting:</div>
         <div id="me-pick-list">${rows}</div>
       </div>
       <div style="padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end">
         <button class="btn btn-sm" onclick="document.getElementById('me-pick-overlay').remove()" style="font-size:13px">Cancel</button>
-        <button class="btn btn-sm" onclick="meConfirmPickActions(${JSON.stringify(allActions).replace(/</g,'\\u003c')})" style="background:var(--blue);color:#fff;font-size:13px">Add Selected</button>
+        <button class="btn btn-sm" id="me-pick-confirm-btn" style="background:var(--blue);color:#fff;font-size:13px;font-weight:600">Add Selected</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
+  // Store action data directly on the overlay element (avoids inline JSON escaping issues)
+  overlay._pickActions = allActions;
+  document.getElementById('me-pick-confirm-btn').addEventListener('click', () => meConfirmPickActions());
   // Close on backdrop click
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 }
 
-function meConfirmPickActions(allActions) {
+function meConfirmPickActions() {
+  const overlay = document.getElementById('me-pick-overlay');
+  const allActions = overlay ? overlay._pickActions : [];
   const checked = Array.from(document.querySelectorAll('#me-pick-list input[type=checkbox]:checked'));
   if (!checked.length) { alert('Select at least one action.'); return; }
 
