@@ -2018,6 +2018,8 @@ try {
       });
     }
   });
+  // Write cleaned data back to localStorage immediately
+  try { localStorage.setItem('epac_meetings', JSON.stringify(meetings)); } catch(e) {}
 } catch(e) { console.warn('Could not restore meetings:', e); }
 
 // ── PLANNING ITEMS store (interventions/actions not yet tied to a meeting) ──
@@ -2106,6 +2108,8 @@ function _applyCloudData(data) {
 window._loadSheetData = function() {
   loadFromSheet(function(data) {
     _applyCloudData(data);
+    // Push cleaned data back to cloud so duplicates don't re-infect on next load
+    setTimeout(function() { if (typeof saveToSheet === 'function') saveToSheet(); }, 1500);
   });
 };
 
