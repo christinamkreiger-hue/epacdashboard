@@ -2745,7 +2745,7 @@ function openModal(idx) {
         const linkOpts = '<option value="">— None —</option>'
           + '<optgroup label="Intervention">' + intTitles.map(t=>`<option value="int:${escHtml(t)}"${a.linkedIntervention===t?' selected':''}>${escHtml(t)}</option>`).join('') + '</optgroup>'
           + '<optgroup label="Projects">' + projects.map(p=>`<option value="proj:${escHtml(p.title)}"${a.linkedProject===p.title?' selected':''}>${escHtml(p.title)}</option>`).join('') + '</optgroup>'
-          + '<optgroup label="Meeting">' + meetings.slice().reverse().map(mt=>`<option value="mtg:${escHtml(mt.id)}">${escHtml(mt.date+(mt.weekLabel?' · '+mt.weekLabel:''))}</option>`).join('') + '</optgroup>';
+          + '<optgroup label="Meeting">' + meetings.slice().reverse().map(mt=>`<option value="mtg:${escHtml(mt.id)}">${escHtml(mt.date)}</option>`).join('') + '</optgroup>';
         return `<div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;gap:8px;align-items:start;margin-bottom:8px" id="me-act-${ai}">
           <input type="text" class="me-act-action" value="${escHtml(a.action||'')}" placeholder="Action…" />
           <input type="text" class="me-act-owner" value="${escHtml(a.owner||'')}" placeholder="Owner…" />
@@ -3244,7 +3244,7 @@ function meAddAction() {
   const linkOpts2 = '<option value="">— None —</option>'
     + '<optgroup label="Intervention">' + intTitles2.map(t=>`<option value="int:${escHtml(t)}">${escHtml(t)}</option>`).join('') + '</optgroup>'
     + '<optgroup label="Projects">' + projects.map(p=>`<option value="proj:${escHtml(p.title)}">${escHtml(p.title)}</option>`).join('') + '</optgroup>'
-    + '<optgroup label="Meeting">' + meetings.slice().reverse().map(mt=>`<option value="mtg:${escHtml(mt.id)}">${escHtml(mt.date+(mt.weekLabel?' · '+mt.weekLabel:''))}</option>`).join('') + '</optgroup>';
+    + '<optgroup label="Meeting">' + meetings.slice().reverse().map(mt=>`<option value="mtg:${escHtml(mt.id)}">${escHtml(mt.date)}</option>`).join('') + '</optgroup>';
   const div = document.createElement('div');
   div.id = 'me-act-' + idx;
   div.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;gap:8px;align-items:start;margin-bottom:8px';
@@ -3905,7 +3905,7 @@ function renderActSummary() {
                   const mtgs = meetings.slice().reverse();
                   let opts = '<optgroup label="Intervention">' + intTitles.map(t=>`<option value="${escHtml(t)}"${a.linkedIntervention===t?' selected':''}>${escHtml(t)}</option>`).join('') + '</optgroup>';
                   opts += '<optgroup label="Projects">' + projTitles.map(t=>`<option value="${escHtml(t)}"${a.linkedIntervention===t?' selected':''}>${escHtml(t)}</option>`).join('') + '</optgroup>';
-                  opts += '<optgroup label="Meeting">' + mtgs.map(m=>`<option value="mtg:${escHtml(m.id)}"${a._linkedMeetingId===m.id?' selected':''}>${escHtml(m.date+(m.weekLabel?' · '+m.weekLabel:''))}</option>`).join('') + '</optgroup>';
+                  opts += '<optgroup label="Meeting">' + mtgs.map(m=>`<option value="mtg:${escHtml(m.id)}"${a._linkedMeetingId===m.id?' selected':''}>${escHtml(m.date)}</option>`).join('') + '</optgroup>';
                   return opts;
                 })()}
               </select>`
