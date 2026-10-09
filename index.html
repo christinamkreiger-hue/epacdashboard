@@ -916,7 +916,7 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
     window.setEditMode = function(on) {
       window.isEditMode = on;
       const editorEls = document.querySelectorAll(
-        '.btn-save, #save-btn, button[onclick*="saveNew"], button[onclick*="saveQuick"], button[onclick*="saveProjectCard"], button[onclick*="openNewMeeting"], button[onclick*="addAction"], button[onclick*="addIntervention"], button[onclick*="nmAddAction"], button[onclick*="nmAddIntervention"], button[onclick*="nmAddGuest"], button[onclick*="addProject"], .btn-danger, .editor-only'
+        '.btn-save, #save-btn, button[onclick*="saveNew"], button[onclick*="saveQuick"], button[onclick*="saveProjectCard"], button[onclick*="openNewMeeting"], button[onclick*="addIntervention"], button[onclick*="nmAddAction"], button[onclick*="nmAddIntervention"], button[onclick*="nmAddGuest"], button[onclick*="addProject"], .btn-danger, .editor-only'
       );
       if (on) {
         editorEls.forEach(el => { el.disabled = false; el.style.opacity = ''; el.style.pointerEvents = ''; });
@@ -2618,6 +2618,10 @@ function openModal(idx) {
   document.getElementById('modal-body').innerHTML = html;
   document.getElementById('meeting-modal').classList.add('open');
   document.body.style.overflow = 'hidden';
+  // Re-enable all inputs/buttons inside this modal (may be globally disabled in view mode)
+  const meModal = document.getElementById('meeting-modal');
+  meModal.querySelectorAll('input, textarea, select').forEach(el => { el.disabled = false; });
+  meModal.querySelectorAll('button').forEach(el => { el.disabled = false; el.style.opacity = ''; el.style.pointerEvents = ''; });
 }
 
 function closeModal() {
@@ -2970,6 +2974,10 @@ function openNewMeetingModal() {
 
   document.getElementById('new-meeting-modal').classList.add('open');
   document.body.style.overflow = 'hidden';
+  // Re-enable all inputs/buttons inside this modal (may be globally disabled in view mode)
+  const nmModal = document.getElementById('new-meeting-modal');
+  nmModal.querySelectorAll('input, textarea, select').forEach(el => { el.disabled = false; });
+  nmModal.querySelectorAll('button').forEach(el => { el.disabled = false; el.style.opacity = ''; el.style.pointerEvents = ''; });
 }
 
 function closeNewMeetingModal() {
@@ -3535,6 +3543,9 @@ function openQuickIntModal() {
   wrap.innerHTML = '<label style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);display:block;margin-bottom:4px">Population</label>' + popDropdownsHTML('qi-pop', {});
   document.getElementById('qi-metric').innerHTML = metricOpts('');
   document.getElementById('qi-priority').innerHTML = priorityOpts('');
+  // Re-enable all inputs/buttons inside this modal (they may be globally disabled in view mode)
+  m.querySelectorAll('input, textarea, select').forEach(el => { el.disabled = false; });
+  m.querySelectorAll('button').forEach(el => { el.disabled = false; el.style.opacity = ''; el.style.pointerEvents = ''; });
 }
 function closeQuickIntModal() {
   document.getElementById('quick-int-modal').style.display = 'none';
