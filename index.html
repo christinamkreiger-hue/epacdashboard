@@ -941,6 +941,7 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
       if (typeof renderLog === 'function') renderLog();
       if (typeof renderProjects === 'function') renderProjects();
       if (typeof renderActSummary === 'function') renderActSummary();
+      if (typeof renderIntSummary === 'function') renderIntSummary();
     };
 
     window.showEditModePrompt = function() {
@@ -1604,6 +1605,14 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
       <div style="margin-bottom:12px">
         <label style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);display:block;margin-bottom:4px">Assigned To</label>
         <input id="qi-assigned" type="text" placeholder="Names or roles (comma-separated)…" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:var(--surface);box-sizing:border-box" />
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);display:block;margin-bottom:4px">Status</label>
+        <select id="qi-int-status" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:var(--surface)">
+          <option value="planning">📋 Planning</option>
+          <option value="progress">🔄 In Progress</option>
+          <option value="completed">✅ Completed</option>
+        </select>
       </div>
       <div id="qi-pop-wrap"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">
@@ -2375,6 +2384,7 @@ function renderLog() {
               ${logAssignees.length?`<div style="font-size:11px;color:var(--text-secondary);margin-top:4px">👤 ${logAssignees.join(', ')}</div>`:''}
             </div>
             <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;flex-shrink:0">
+              ${(()=>{const s=i.status||'planning';if(s==='progress')return'<span style="font-size:10px;font-weight:700;background:#e8eef7;color:#002D72;border-radius:20px;padding:2px 7px;border:1px solid #c5d3e8">🔄 In Progress</span>';if(s==='completed')return'<span style="font-size:10px;font-weight:700;background:#eef7f2;color:#007749;border-radius:20px;padding:2px 7px;border:1px solid #b6deca">✅ Completed</span>';return'<span style="font-size:10px;font-weight:700;background:#fff8e1;color:#b45309;border-radius:20px;padding:2px 7px;border:1px solid #fcd34d">📋 Planning</span>';})()}
               ${i.metric?`<span style="font-size:10px;font-weight:700;background:#e8eef7;color:#002D72;border-radius:20px;padding:2px 7px;border:1px solid #c5d3e8">📊 ${i.metric}</span>`:''}
               ${i.priority?`<span style="font-size:10px;font-weight:700;background:#eef7f2;color:#007749;border-radius:20px;padding:2px 7px;border:1px solid #b6deca">★ ${i.priority}</span>`:''}
               ${i.hasBarrier==='yes'?`<span class="log-int-barrier-tag">⚑ Barrier</span>`:''}
@@ -2522,6 +2532,14 @@ function openModal(idx) {
           <input type="text" class="me-int-assigned" value="${i.assignedTo||''}" placeholder="Names or roles (comma-separated)…" style="width:100%" />
         </div>
         <div class="field" style="margin-bottom:8px">
+          <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Status</label>
+          <select class="me-int-status" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface)">
+            <option value="planning" ${(i.status||'planning')==='planning'?'selected':''}>📋 Planning</option>
+            <option value="progress" ${i.status==='progress'?'selected':''}>🔄 In Progress</option>
+            <option value="completed" ${i.status==='completed'?'selected':''}>✅ Completed</option>
+          </select>
+        </div>
+        <div class="field" style="margin-bottom:8px">
           <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Population impacted</label>
           ${popDropdownsHTML('me-int-pop-' + ii, typeof i.population === 'object' ? i.population : {})}
         </div>
@@ -2653,6 +2671,7 @@ function saveBarrierUpdates() {
       title: intTitle,
       name: div.querySelector('.me-int-name')?.value,
       assignedTo: div.querySelector('.me-int-assigned')?.value || '',
+      status: div.querySelector('.me-int-status')?.value || 'planning',
       population: popValsFromEl('me-int-pop-' + ii, div),
       metric: div.querySelector('.me-int-metric')?.value || '',
       priority: div.querySelector('.me-int-priority')?.value || '',
@@ -3057,6 +3076,14 @@ function nmAddIntervention() {
       <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Assigned To</label>
       <input type="text" class="nmi-assigned" placeholder="Names or roles (comma-separated)…" style="width:100%" />
     </div>
+    <div style="margin-bottom:8px">
+      <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Status</label>
+      <select class="nmi-status" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface)">
+        <option value="planning">📋 Planning</option>
+        <option value="progress">🔄 In Progress</option>
+        <option value="completed">✅ Completed</option>
+      </select>
+    </div>
     <div style="margin-bottom:10px">
       <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:6px">Population</label>
       ${popDropdownsHTML('nmi-pop-' + nmIntCount, {})}
@@ -3169,6 +3196,7 @@ function saveNewMeeting() {
       title: intTitle,
       name: div.querySelector('.nmi-name')?.value || '',
       assignedTo: div.querySelector('.nmi-assigned')?.value || '',
+      status: div.querySelector('.nmi-status')?.value || 'planning',
       population: popValsFromEl('nmi-pop-' + cnt, div),
       metric: div.querySelector('.nmi-metric')?.value || '',
       priority: div.querySelector('.nmi-priority')?.value || '',
@@ -3242,7 +3270,7 @@ function renderIntSummary() {
   }
   el.innerHTML = all.slice().reverse().map(i => {
     const assignees = (i.assignedTo || '').split(',').map(s=>s.trim()).filter(Boolean);
-    const editBtn = window.isEditMode ? `<button class="btn btn-sm editor-only" style="font-size:12px;padding:3px 10px" onclick="openIntEditPanel(${i._mi},${i._ii},this)"><span style="font-size:13px">✎</span> Edit</button>` : '';
+    const editBtn = window.isEditMode ? `<button class="btn btn-sm" style="font-size:12px;padding:3px 10px" onclick="openIntEditPanel(${i._mi},${i._ii},this)"><span style="font-size:13px">✎</span> Edit</button>` : '';
     return `
     <div class="card int-summary-card" data-mi="${i._mi}" data-ii="${i._ii}" style="margin-bottom:8px;border-left:4px solid var(--blue);padding:12px 14px">
       <div class="int-view-mode">
@@ -3262,6 +3290,7 @@ function renderIntSummary() {
           ${assignees.map(a=>`<span style="font-size:11px;font-weight:600;background:var(--surface);color:var(--text-primary);border-radius:20px;padding:3px 10px;border:1px solid var(--border)">${escHtml(a)}</span>`).join('')}
         </div>` : ''}
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center">
+          ${(()=>{ const s=i.status||''; if(!s||s==='planning') return '<span style="font-size:11px;font-weight:700;background:#fff8e1;color:#b45309;border-radius:20px;padding:3px 10px;border:1px solid #fcd34d">📋 Planning</span>'; if(s==='progress') return '<span style="font-size:11px;font-weight:700;background:#e8eef7;color:#002D72;border-radius:20px;padding:3px 10px;border:1px solid #c5d3e8">🔄 In Progress</span>'; if(s==='completed') return '<span style="font-size:11px;font-weight:700;background:#eef7f2;color:#007749;border-radius:20px;padding:3px 10px;border:1px solid #b6deca">✅ Completed</span>'; return ''; })()}
           ${i.metric ? `<span style="font-size:11px;font-weight:700;background:#e8eef7;color:#002D72;border-radius:20px;padding:3px 10px;border:1px solid #c5d3e8">📊 ${i.metric}</span>` : ''}
           ${i.priority ? `<span style="font-size:11px;font-weight:700;background:#eef7f2;color:#007749;border-radius:20px;padding:3px 10px;border:1px solid #b6deca">★ ${i.priority}</span>` : ''}
           ${i.hasBarrier === 'yes' ? '<span class="log-int-barrier-tag">⚑ Barrier</span>' : ''}
@@ -3298,6 +3327,14 @@ function openIntEditPanel(mi, ii, btn) {
       <div>
         <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Assigned To</label>
         <input class="ipe-assigned" type="text" value="${escHtml(i.assignedTo||'')}" placeholder="Names or roles (comma-separated)…" style="width:100%" />
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Status</label>
+        <select class="ipe-status" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface)">
+          <option value="planning" ${(i.status||'planning')==='planning'?'selected':''}>📋 Planning</option>
+          <option value="progress" ${i.status==='progress'?'selected':''}>🔄 In Progress</option>
+          <option value="completed" ${i.status==='completed'?'selected':''}>✅ Completed</option>
+        </select>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <div>
@@ -3338,6 +3375,7 @@ function saveIntEdit(mi, ii, btn) {
   i.title = editDiv.querySelector('.ipe-title').value.trim();
   i.name = editDiv.querySelector('.ipe-name').value.trim();
   i.assignedTo = editDiv.querySelector('.ipe-assigned').value.trim();
+  i.status = editDiv.querySelector('.ipe-status').value;
   i.metric = editDiv.querySelector('.ipe-metric').value;
   i.priority = editDiv.querySelector('.ipe-priority').value;
   i.hasBarrier = editDiv.querySelector('.ipe-barrier-yn[value="yes"]')?.checked ? 'yes' : 'no';
@@ -3491,6 +3529,7 @@ function openQuickIntModal() {
   document.getElementById('qi-title').value = '';
   document.getElementById('qi-name').value = '';
   document.getElementById('qi-assigned').value = '';
+  document.getElementById('qi-int-status').value = 'planning';
   document.getElementById('qi-actions-list').innerHTML = '';
   const wrap = document.getElementById('qi-pop-wrap');
   wrap.innerHTML = '<label style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);display:block;margin-bottom:4px">Population</label>' + popDropdownsHTML('qi-pop', {});
@@ -3512,7 +3551,7 @@ function saveQuickInt() {
     if (!act.trim()) return null;
     return { action: act, owner: row.querySelector('.qia-owner')?.value||'', due: row.querySelector('.qia-due')?.value||'', status: 'progress', outcome: '', linkedProject: '', linkedIntervention: intTitle };
   }).filter(Boolean);
-  const intervention = { title: intTitle, name, assignedTo: document.getElementById('qi-assigned').value.trim(), population: popValsFromEl('qi-pop', document.getElementById('qi-pop-wrap')), metric: document.getElementById('qi-metric')?.value || '', priority: document.getElementById('qi-priority')?.value || '', hasBarrier: 'no', barrierDesc: '', actions: qiActs };
+  const intervention = { title: intTitle, name, assignedTo: document.getElementById('qi-assigned').value.trim(), status: document.getElementById('qi-int-status')?.value || 'planning', population: popValsFromEl('qi-pop', document.getElementById('qi-pop-wrap')), metric: document.getElementById('qi-metric')?.value || '', priority: document.getElementById('qi-priority')?.value || '', hasBarrier: 'no', barrierDesc: '', actions: qiActs };
   const meeting = { id: 'mtg-qi-' + Date.now(), date, weekLabel: '', notes: '', dashboard: { apr:'', fticTotal:'', fticRegAbove:'', fticRegBelow:'', fticUnregAbove:'', fticUnregBelow:'', fticNotes:'', gradNotes:'', g4ftic:{}, g3aa:{}, g6pell:{}, g4xfer:{} }, barriers: [], populations: [], interventions: [intervention], actions: qiActs, story: { type:'', text:'', teller:'' }, attendance: { members:[], guests:[], total:0 } };
   meetings.push(meeting);
   persistMeetings();
