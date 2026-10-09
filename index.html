@@ -2812,7 +2812,10 @@ function openModal(idx) {
         </div>`;
       }).join('')}
     </div>
-    <button class="btn btn-sm" style="margin-top:8px;background:var(--blue-pale);color:var(--blue);border-color:var(--blue-light);font-size:13px" onclick="meAddAction()"><span>+</span> Add Action Item</button>
+    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+      <button class="btn btn-sm" style="background:var(--blue-pale);color:var(--blue);border-color:var(--blue-light);font-size:13px" onclick="meAddAction()"><span>+</span> Add Action Item</button>
+      <button class="btn btn-sm" style="background:var(--surface-2,#f3f4f6);color:var(--text-secondary);border-color:var(--border);font-size:13px" onclick="mePickExistingAction()">📋 Pull In Existing Action</button>
+    </div>
   </div>`;
 
   // ── Story
@@ -3313,6 +3316,103 @@ function meAddAction() {
     <input type="text" class="me-act-outcome" placeholder="Expected outcome…" style="grid-column:1/-1" />
   `;
   list.appendChild(div);
+}
+
+function mePickExistingAction() {
+  // Collect all actions from all sources
+  const allActions = [];
+  meetings.forEach(mt => {
+    (mt.actions||[]).forEach(a => {
+      if (a.action && a.action.trim()) allActions.push({ ...a, _fromMtgId: mt.id, _fromMtgDate: mt.date, _src: 'meeting' });
+    });
+  });
+  projects.forEach(pr => {
+    (pr.actions||[]).forEach(a => {
+      if (a.action && a.action.trim()) allActions.push({ ...a, _fromProj: pr.title, _src: 'project' });
+    });
+  });
+  planningItems.forEach(pl => {
+    (pl.actions||[]).forEach(a => {
+      if (a.action && a.action.trim()) allActions.push({ ...a, _fromPlan: pl.title||'Planning', _src: 'planning' });
+    });
+  });
+
+  if (!allActions.length) { alert('No existing action items found.'); return; }
+
+  // Build modal HTML
+  const rows = allActions.map((a, i) => {
+    const src = a._fromMtgDate ? `📅 ${a._fromMtgDate}` : a._fromProj ? `📁 ${a._fromProj}` : `📋 ${a._fromPlan}`;
+    const statusBadge = a.status ? `<span style="font-size:11px;padding:2px 6px;border-radius:4px;background:var(--blue-pale);color:var(--blue)">${escHtml(a.status)}</span>` : '';
+    return `<label style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;margin-bottom:6px;background:var(--surface-1,var(--bg))">
+      <input type="checkbox" value="${i}" style="margin-top:3px;flex-shrink:0">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:600;color:var(--text-primary)">${escHtml(a.action)}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;align-items:center">
+          <span style="font-size:12px;color:var(--text-muted)">${src}</span>
+          ${a.owner ? `<span style="font-size:12px;color:var(--text-secondary)">👤 ${escHtml(a.owner)}</span>` : ''}
+          ${a.due ? `<span style="font-size:12px;color:var(--text-secondary)">📆 ${escHtml(a.due)}</span>` : ''}
+          ${statusBadge}
+        </div>
+      </div>
+    </label>`;
+  }).join('');
+
+  const overlay = document.createElement('div');
+  overlay.id = 'me-pick-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  overlay.innerHTML = `
+    <div style="background:var(--bg);border-radius:14px;width:100%;max-width:560px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,.25)">
+      <div style="padding:16px 20px 12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+        <div style="font-size:16px;font-weight:700;color:var(--text-primary)">Pull In Existing Action</div>
+        <button onclick="document.getElementById('me-pick-overlay').remove()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted);line-height:1">×</button>
+      </div>
+      <div style="padding:14px 20px;overflow-y:auto;flex:1">
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:10px">Select one or more action items to copy into this meeting:</div>
+        <div id="me-pick-list">${rows}</div>
+      </div>
+      <div style="padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-sm" onclick="document.getElementById('me-pick-overlay').remove()" style="font-size:13px">Cancel</button>
+        <button class="btn btn-sm" onclick="meConfirmPickActions(${JSON.stringify(allActions).replace(/</g,'\\u003c')})" style="background:var(--blue);color:#fff;font-size:13px">Add Selected</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  // Close on backdrop click
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+}
+
+function meConfirmPickActions(allActions) {
+  const checked = Array.from(document.querySelectorAll('#me-pick-list input[type=checkbox]:checked'));
+  if (!checked.length) { alert('Select at least one action.'); return; }
+
+  const list = document.getElementById('me-act-list');
+  const intTitles2 = meetings.flatMap(mt=>(mt.interventions||[]).map(i=>i.title||i.name)).concat(planningItems.map(p=>p.title||p.name)).filter(Boolean).filter((v,i,arr)=>arr.indexOf(v)===i);
+  const linkOpts2 = '<option value="">— None —</option>'
+    + '<optgroup label="Intervention">' + intTitles2.map(t=>`<option value="int:${escHtml(t)}">${escHtml(t)}</option>`).join('') + '</optgroup>'
+    + '<optgroup label="Projects">' + projects.map(p=>`<option value="proj:${escHtml(p.title)}">${escHtml(p.title)}</option>`).join('') + '</optgroup>'
+    + '<optgroup label="Meeting">' + meetings.slice().reverse().map(mt=>`<option value="mtg:${escHtml(mt.id)}">${escHtml(mt.date)}</option>`).join('') + '</optgroup>';
+
+  checked.forEach(cb => {
+    const a = allActions[parseInt(cb.value)];
+    const idx = list.children.length;
+    const div = document.createElement('div');
+    div.id = 'me-act-' + idx;
+    div.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;gap:8px;align-items:start;margin-bottom:8px';
+    // Pre-select current link value
+    const curLink = a.linkedIntervention ? `int:${a.linkedIntervention}` : a.linkedProject ? `proj:${a.linkedProject}` : '';
+    const linkOptsSelected = linkOpts2.replace(`value="${curLink}"`, `value="${curLink}" selected`);
+    div.innerHTML = `
+      <input type="text" class="me-act-action" value="${escHtml(a.action||'')}" placeholder="Action…" />
+      <input type="text" class="me-act-owner" value="${escHtml(a.owner||'')}" placeholder="Owner…" />
+      <input type="date" class="field-input me-act-due" value="${a.due||''}" />
+      <select class="me-act-status">${STATUS_OPTS(a.status||'')}</select>
+      <select class="me-act-link" title="Link to">${linkOptsSelected}</select>
+      <button class="btn btn-sm btn-danger" onclick="this.closest('[id^=me-act-]').remove()" title="Remove"><span>✕</span></button>
+      <input type="text" class="me-act-outcome" value="${escHtml(a.outcome||'')}" placeholder="Expected outcome…" style="grid-column:1/-1" />
+    `;
+    list.appendChild(div);
+  });
+
+  document.getElementById('me-pick-overlay').remove();
 }
 
 function meIntAddAction(btn) {
