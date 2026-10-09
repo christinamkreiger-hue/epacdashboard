@@ -506,19 +506,23 @@
   /* ── SCHEDULE ── */
   .sched-row { display:flex; align-items:center; gap:14px; padding:13px 20px; border-bottom:1px solid var(--border); transition:background .15s; }
   .sched-row:last-child { border-bottom:none; }
-  .sched-row.past { opacity:.5; }
+  .sched-row.past { opacity:.45; background:#f9f9f9; }
+  .sched-row.past .sched-label { color:var(--text-muted); text-decoration:line-through; }
+  .sched-row.past .sched-time { color:var(--text-muted); }
   .sched-row.today { background:var(--blue-pale); }
+  .sched-row.next-up { background:#f0faf4; border-left:4px solid var(--green); }
   .sched-dot { width:10px; height:10px; border-radius:50%; background:var(--border-mid); flex-shrink:0; }
   .sched-row.today .sched-dot { background:var(--blue); }
-  .sched-row.upcoming .sched-dot { background:var(--green); }
+  .sched-row.next-up .sched-dot { background:var(--green); width:13px; height:13px; }
   .sched-info { flex:1; }
   .sched-label { font-size:15px; font-weight:600; color:var(--text-primary); }
-  .sched-row.past .sched-label { color:var(--text-muted); }
+  .sched-row.next-up .sched-label { font-size:16px; font-weight:700; color:#1a6b3a; }
+  .sched-row.next-up .sched-time { color:#2d8a50; font-weight:500; }
   .sched-time { font-size:13px; color:var(--text-secondary); margin-top:2px; }
   .sched-badge { font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; padding:3px 10px; border-radius:20px; white-space:nowrap; }
   .sched-badge.badge-today { background:var(--blue); color:#fff; }
-  .sched-badge.badge-next { background:var(--green-light); color:var(--green); }
-  .sched-badge.badge-past { background:var(--surface); color:var(--text-muted); border:1px solid var(--border); }
+  .sched-badge.badge-next { background:var(--green); color:#fff; padding:5px 14px; font-size:12px; }
+  .sched-badge.badge-past { background:transparent; color:var(--text-muted); }
 
   /* ── LOG ACCORDION ── */
   .log-entry { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: .75rem; overflow: hidden; box-shadow: var(--shadow-sm); }
@@ -916,7 +920,7 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
     window.setEditMode = function(on) {
       window.isEditMode = on;
       const editorEls = document.querySelectorAll(
-        '.btn-save, #save-btn, button[onclick*="saveNew"], button[onclick*="saveQuick"], button[onclick*="saveProjectCard"], button[onclick*="openNewMeeting"], button[onclick*="addIntervention"], button[onclick*="nmAddAction"], button[onclick*="nmAddIntervention"], button[onclick*="nmAddGuest"], button[onclick*="addProject"], .btn-danger, .editor-only'
+        '.btn-save, #save-btn, button[onclick*="saveNew"], button[onclick*="openNewMeeting"], button[onclick*="nmAddAction"], button[onclick*="nmAddIntervention"], button[onclick*="nmAddGuest"], .btn-danger, .editor-only'
       );
       if (on) {
         editorEls.forEach(el => { el.disabled = false; el.style.opacity = ''; el.style.pointerEvents = ''; });
@@ -1530,7 +1534,7 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:1rem">
       <div style="font-size:13px;color:var(--text-secondary)" id="int-count-label"></div>
-      <button class="btn btn-primary editor-only" style="background:var(--blue);color:#fff;border-color:var(--blue);font-size:14px;padding:9px 18px" onclick="openQuickIntModal()">
+      <button class="btn btn-primary" style="background:var(--blue);color:#fff;border-color:var(--blue);font-size:14px;padding:9px 18px" onclick="if(!window.isEditMode){showEditModePrompt();return;}openQuickIntModal()">
         <span style="font-size:16px;margin-right:4px">+</span> Log an Intervention
       </button>
     </div>
@@ -1547,7 +1551,7 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:1rem">
       <div style="font-size:13px;color:var(--text-secondary)" id="act-count-label"></div>
-      <button class="btn btn-primary editor-only" style="background:var(--green);color:#fff;border-color:var(--green);font-size:14px;padding:9px 18px" onclick="openQuickActionModal()">
+      <button class="btn btn-primary" style="background:var(--green);color:#fff;border-color:var(--green);font-size:14px;padding:9px 18px" onclick="if(!window.isEditMode){showEditModePrompt();return;}openQuickActionModal()">
         <span style="font-size:16px;margin-right:4px">+</span> Add Action Item
       </button>
     </div>
@@ -1565,7 +1569,7 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
 
     <!-- Add Project Button -->
     <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
-      <button class="btn" onclick="addProject()" style="background:var(--blue);color:#fff;border-color:var(--blue)">+ Add Project</button>
+      <button class="btn" onclick="if(!window.isEditMode){showEditModePrompt();return;}addProject()" style="background:var(--blue);color:#fff;border-color:var(--blue)">+ Add Project</button>
     </div>
 
     <!-- Projects List -->
@@ -1589,7 +1593,7 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:1rem">
       <div style="font-size:13px;color:var(--text-secondary)" id="story-count-label"></div>
-      <button class="btn btn-primary editor-only" style="background:var(--gold);color:#fff;border-color:var(--gold);font-size:14px;padding:9px 18px" onclick="openQuickStoryModal()">
+      <button class="btn btn-primary" style="background:var(--gold);color:#fff;border-color:var(--gold);font-size:14px;padding:9px 18px" onclick="if(!window.isEditMode){showEditModePrompt();return;}openQuickStoryModal()">
         <span style="font-size:16px;margin-right:4px">⭐</span> Log a Success Story
       </button>
     </div>
