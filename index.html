@@ -2639,6 +2639,8 @@ function deleteMeeting(idx, evt) {
 
 /* ── MODAL ── */
 function openModal(idx) {
+  // Clear any pending source removals from a previous edit session
+  document.body._pendingSourceRemovals = [];
   currentModalMeetingIndex = idx;
   const m = meetings[idx];
   document.getElementById('modal-title').textContent = m.date;
@@ -2925,6 +2927,36 @@ function saveBarrierUpdates() {
     text: document.getElementById('me-story-text').value,
     teller: document.getElementById('me-story-teller').value,
   };
+
+  // Apply any pending source removals from "Pull In Existing Action"
+  const modal2 = document.getElementById('meeting-edit-modal') || document.querySelector('.modal.active') || document.body;
+  const pending = modal2._pendingSourceRemovals || [];
+  pending.forEach(a => {
+    if (a._fromMtgId) {
+      const srcMtg = meetings.find(mt => mt.id === a._fromMtgId);
+      if (srcMtg && srcMtg.actions) {
+        const ri = srcMtg.actions.findIndex(x => x.action === a.action && x.owner === a.owner);
+        if (ri !== -1) srcMtg.actions.splice(ri, 1);
+      }
+    } else if (a._fromProj) {
+      const srcProj = projects.find(p => p.title === a._fromProj);
+      if (srcProj && srcProj.actions) {
+        const ri = srcProj.actions.findIndex(x => x.action === a.action && x.owner === a.owner);
+        if (ri !== -1) srcProj.actions.splice(ri, 1);
+      }
+    } else if (a._fromPlan) {
+      const srcPlan = planningItems.find(p => (p.title||'Planning') === a._fromPlan);
+      if (srcPlan && srcPlan.actions) {
+        const ri = srcPlan.actions.findIndex(x => x.action === a.action && x.owner === a.owner);
+        if (ri !== -1) srcPlan.actions.splice(ri, 1);
+      }
+    }
+  });
+  if (pending.length) {
+    persistProjects();
+    persistPlanning();
+  }
+  document.body._pendingSourceRemovals = [];
 
   renderLog();
   persistMeetings();
@@ -3447,10 +3479,12 @@ function meConfirmPickActions() {
     list.appendChild(div);
   });
 
-  // Persist removals from source stores immediately
-  persistMeetings();
-  persistProjects();
-  persistPlanning();
+  // Store pending removals on the overlay's parent so saveMeeting() can apply them
+  // We do NOT persist here — removals are committed only when the meeting is saved
+  const modal = document.getElementById('meeting-edit-modal') || document.querySelector('.modal.active') || document.body;
+  modal._pendingSourceRemovals = (modal._pendingSourceRemovals || []).concat(
+    selectedIndices.map(idx => allActions[idx])
+  );
 
   document.getElementById('me-pick-overlay').remove();
 }
