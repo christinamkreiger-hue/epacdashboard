@@ -908,6 +908,7 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
       document.getElementById('pw-gate').classList.add('unlocked');
       document.getElementById('pw-content').style.display = 'block';
       setEditMode(false);
+      setTimeout(function(){ if(typeof markSchedule==='function') markSchedule(); }, 100);
       // Auto-pull from cloud after a short delay to ensure all JS is ready
       setTimeout(function() {
         var btn = document.getElementById('refresh-btn');
@@ -4502,7 +4503,9 @@ function markSchedule() {
   let foundNext = false;
   const sorted = Array.from(rows).sort((a,b) => a.dataset.date.localeCompare(b.dataset.date));
   sorted.forEach(row => {
-    const ds = row.dataset.date; // 'YYYY-MM-DD'
+    // Reset classes
+    row.classList.remove('past','today','upcoming','next-up');
+    const ds = row.dataset.date;
     const badge = row.querySelector('.sched-badge');
     if (ds < todayStr) {
       row.classList.add('past');
@@ -4512,11 +4515,12 @@ function markSchedule() {
       if (badge) { badge.className = 'sched-badge badge-today'; badge.textContent = 'Today'; }
       foundNext = true;
     } else if (!foundNext) {
-      row.classList.add('upcoming');
+      row.classList.add('next-up');
       if (badge) { badge.className = 'sched-badge badge-next'; badge.textContent = 'Next'; }
       foundNext = true;
     } else {
       row.classList.add('upcoming');
+      if (badge) { badge.className = 'sched-badge'; badge.textContent = ''; }
     }
   });
 }
