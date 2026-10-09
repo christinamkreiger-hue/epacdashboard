@@ -3830,22 +3830,35 @@ function renderActSummary() {
             onchange="${onChgDue}" />
         </div>
         <div>
+          <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);display:block;margin-bottom:3px">Source</label>
           ${isProj
-            ? `<label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);display:block;margin-bottom:3px">Linked meeting</label>
-               <div style="font-size:13px;color:var(--text-secondary);padding:5px 0">${a.linkedMeeting ? `🗓 ${escHtml(a.linkedMeeting)}` : '—'}</div>`
-            : isPlan
-            ? `<label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);display:block;margin-bottom:3px">Source</label>
-               <div style="font-size:13px;color:#b45309;padding:5px 0">📋 Planning item</div>`
-            : `<label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);display:block;margin-bottom:3px">Linked project</label>
-               <select style="width:100%;font-size:13px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);${disStyle}"
-                 onchange="updateAction(${mi},${ai},'linkedProject',this.value)" ${dis}>${projOpts}</select>`
+            ? `<div style="font-size:13px;color:var(--text-secondary);padding:5px 0">${a.linkedMeeting ? `🗓 ${escHtml(a.linkedMeeting)}` : '📁 ' + escHtml(a.linkedProject||'Project')}</div>`
+            : `<select style="width:100%;font-size:13px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);${disStyle}"
+                onchange="${isPlan ? `updatePlanningAction(${planI},${ai},'linkedIntervention',this.value)` : `updateAction(${mi},${ai},'linkedIntervention',this.value)`}" ${dis}>
+                <option value="">— None —</option>
+                <optgroup label="Interventions">${
+                  meetings.flatMap(m => (m.interventions||[]).map(i => i.title||i.name)).filter(Boolean)
+                  .concat(planningItems.map(p => p.title||p.name).filter(Boolean))
+                  .filter((v,i,arr)=>arr.indexOf(v)===i)
+                  .map(t => `<option value="${escHtml(t)}"${a.linkedIntervention===t?' selected':''}>${escHtml(t)}</option>`).join('')
+                }</optgroup>
+                <optgroup label="Projects">${
+                  projects.map(p => `<option value="${escHtml(p.title)}"${a.linkedIntervention===p.title?' selected':''}>${escHtml(p.title)}</option>`).join('') || '<option disabled>No projects</option>'
+                }</optgroup>
+                <optgroup label="Meetings">${
+                  meetings.map(m => `<option value="${escHtml(m.date+(m.weekLabel?' · '+m.weekLabel:''))}"${a.linkedIntervention===(m.date+(m.weekLabel?' · '+m.weekLabel:''))?' selected':''}>${escHtml(m.date+(m.weekLabel?' · '+m.weekLabel:''))}</option>`).join('') || '<option disabled>No meetings</option>'
+                }</optgroup>
+              </select>`
           }
         </div>
       </div>
       ${a.outcome ? `<div style="margin-top:8px;font-size:12px;color:var(--text-secondary);font-style:italic">Expected outcome: ${escHtml(a.outcome)}</div>` : ''}
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
-        ${a.linkedIntervention ? `<span style="font-size:11px;font-weight:700;background:#f0eafa;color:#5b2d8e;border-radius:20px;padding:3px 10px;border:1px solid #d4baf5">🔗 ${escHtml(a.linkedIntervention)}</span>` : ''}
-        ${isProj ? `<span style="font-size:11px;font-weight:700;background:var(--blue-pale);color:var(--blue);border-radius:20px;padding:3px 10px;border:1px solid var(--blue-light)">📁 ${escHtml(a.linkedProject)}</span>` : ''}
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-top:6px">
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${a.linkedIntervention ? `<span style="font-size:11px;font-weight:700;background:#f0eafa;color:#5b2d8e;border-radius:20px;padding:3px 10px;border:1px solid #d4baf5">🔗 ${escHtml(a.linkedIntervention)}</span>` : ''}
+          ${isProj ? `<span style="font-size:11px;font-weight:700;background:var(--blue-pale);color:var(--blue);border-radius:20px;padding:3px 10px;border:1px solid var(--blue-light)">📁 ${escHtml(a.linkedProject)}</span>` : ''}
+        </div>
+        ${window.isEditMode ? `<button class="btn btn-sm btn-danger" onclick="${isProj ? `deleteProjectAction(${projI},${ai})` : isPlan ? `deletePlanningAction(${planI},${ai})` : `deleteMeetingAction(${mi},${ai})`}" style="font-size:12px;padding:3px 10px">🗑 Remove</button>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -3860,6 +3873,29 @@ function updateAction(meetingIdx, actionIdx, field, value) {
     renderActSummary();
     if (typeof window.saveToSheet === 'function') window.saveToSheet();
   }
+}
+
+function deleteMeetingAction(meetingIdx, actionIdx) {
+  if (!meetings[meetingIdx]) return;
+  meetings[meetingIdx].actions.splice(actionIdx, 1);
+  persistMeetings();
+  renderActSummary();
+  renderLog();
+}
+
+function deleteProjectAction(projectIdx, actionIdx) {
+  if (!projects[projectIdx]) return;
+  projects[projectIdx].actions.splice(actionIdx, 1);
+  saveProjects();
+  renderActSummary();
+  renderProjects();
+}
+
+function deletePlanningAction(planIdx, actionIdx) {
+  if (!planningItems[planIdx]) return;
+  planningItems[planIdx].actions.splice(actionIdx, 1);
+  persistPlanning();
+  renderActSummary();
 }
 
 function updateProjectAction(projectIdx, actionIdx, field, value) {
