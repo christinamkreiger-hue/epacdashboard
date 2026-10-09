@@ -1626,12 +1626,6 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
             <option value="hold">On Hold</option>
           </select>
         </div>
-        <div>
-          <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Link to meeting <span style="font-weight:400;color:var(--text-muted)">(optional)</span></label>
-          <select id="qa-meeting" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:var(--surface)">
-            <option value="">— Planning only —</option>
-          </select>
-        </div>
       </div>
       <div style="margin-bottom:14px">
         <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Link to intervention <span style="font-weight:400;color:var(--text-muted)">(optional)</span></label>
@@ -3871,8 +3865,6 @@ function renderActSummary() {
     const projOpts = projects.length
       ? '<option value="">— None —</option>' + projects.map(p=>`<option value="${escHtml(p.title)}"${p.title===a.linkedProject?' selected':''}>${escHtml(p.title)}</option>`).join('')
       : '<option value="">No projects saved</option>';
-    const dateLabel = isPlan ? ''
-      : `<span style="font-size:11px;color:var(--text-muted)">📅 ${a.date||'No date'}${a.weekLabel?' · '+a.weekLabel:''}</span>`;
     return `
     <div class="card" style="margin-bottom:10px;border-left:4px solid ${statusColor(a.status)};padding:14px 16px">
       <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
@@ -3881,9 +3873,7 @@ function renderActSummary() {
             style="width:100%;font-size:14px;font-weight:600;border:none;border-bottom:1px solid var(--border);background:transparent;padding:2px 0;margin-bottom:6px;color:var(--text-primary);resize:none;overflow:hidden;line-height:1.4;box-sizing:border-box;${disStyle}"
             oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
             onchange="${onChgAction}">${escHtml(a.action)}</textarea>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:4px">
-            ${dateLabel}
-          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:4px"></div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;flex-shrink:0">
           <select onchange="${onChgStatus}" ${dis}
@@ -3910,17 +3900,23 @@ function renderActSummary() {
           ${isProj
             ? `<div style="font-size:13px;color:var(--text-secondary);padding:5px 0">${escHtml(a.linkedProject||'—')}</div>`
             : `<select style="width:100%;font-size:13px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);${disStyle}"
-                onchange="${isPlan ? `updatePlanningAction(${planI},${ai},'linkedIntervention',this.value)` : `updateAction(${mi},${ai},'linkedIntervention',this.value)`}" ${dis}>
+                onchange="${isPlan ? `linkToChanged('plan',${planI},${ai},this.value)` : `linkToChanged('meeting',${mi},${ai},this.value)`}" ${dis}>
                 <option value="">— None —</option>
                 ${(() => {
                   const intTitles = meetings.flatMap(m => (m.interventions||[]).map(i => i.title||i.name)).filter(Boolean)
                     .concat(planningItems.map(p => p.title||p.name).filter(Boolean))
                     .filter((v,i,arr) => arr.indexOf(v)===i);
                   const projTitles = projects.map(p => p.title).filter(Boolean);
+                  const mtgOpts = meetings.slice().reverse().map(m => {
+                    const label = m.date + (m.weekLabel ? ' · ' + m.weekLabel : '');
+                    const sel = (a._linkedMeetingId === m.id) ? ' selected' : '';
+                    return `<option value="mtg:${escHtml(m.id)}"${sel}>${escHtml(label)}</option>`;
+                  });
 
                   let opts = '';
                   if (intTitles.length) opts += `<optgroup label="Interventions">${intTitles.map(t=>`<option value="${escHtml(t)}"${a.linkedIntervention===t?' selected':''}>${escHtml(t)}</option>`).join('')}</optgroup>`;
                   if (projTitles.length) opts += `<optgroup label="Projects">${projTitles.map(t=>`<option value="${escHtml(t)}"${a.linkedIntervention===t?' selected':''}>${escHtml(t)}</option>`).join('')}</optgroup>`;
+                  if (mtgOpts.length) opts += `<optgroup label="Meetings">${mtgOpts.join('')}</optgroup>`;
                   return opts;
                 })()}
               </select>`
@@ -3951,6 +3947,47 @@ function updateAction(meetingIdx, actionIdx, field, value) {
   if (field === 'status') {
     renderActSummary();
     if (typeof window.saveToSheet === 'function') window.saveToSheet();
+  }
+}
+
+// Handles the "Link to" dropdown — routes to meeting if value starts with "mtg:"
+function linkToChanged(srcType, srcIdx, actionIdx, value) {
+  if (value.startsWith('mtg:')) {
+    const mtgId = value.slice(4);
+    const targetMtg = meetings.find(m => m.id === mtgId);
+    if (!targetMtg) return;
+    // Pull the action from its current store
+    let act;
+    if (srcType === 'plan') {
+      const plan = planningItems[srcIdx];
+      if (!plan) return;
+      act = (plan.actions||[])[actionIdx];
+      if (!act) return;
+      act = Object.assign({}, act, { _src:'meeting', date: targetMtg.date, weekLabel: targetMtg.weekLabel||'' });
+      plan.actions.splice(actionIdx, 1);
+      persistPlanning();
+    } else {
+      const mtg = meetings[srcIdx];
+      if (!mtg) return;
+      act = (mtg.actions||[])[actionIdx];
+      if (!act) return;
+      // Moving to a different meeting
+      if (mtg.id === mtgId) return; // same meeting, no-op
+      act = Object.assign({}, act, { _src:'meeting', date: targetMtg.date, weekLabel: targetMtg.weekLabel||'' });
+      mtg.actions.splice(actionIdx, 1);
+    }
+    targetMtg.actions = targetMtg.actions || [];
+    targetMtg.actions.push(act);
+    persistMeetings();
+    renderActSummary();
+    renderLog();
+  } else {
+    // Regular intervention/project link
+    if (srcType === 'plan') {
+      updatePlanningAction(srcIdx, actionIdx, 'linkedIntervention', value);
+    } else {
+      updateAction(srcIdx, actionIdx, 'linkedIntervention', value);
+    }
   }
 }
 
@@ -4037,9 +4074,6 @@ let _qaMode = 'new';
 function openQuickActionModal() {
   const m = document.getElementById('quick-action-modal');
   // populate meeting dropdown
-  const mtgSel = document.getElementById('qa-meeting');
-  mtgSel.innerHTML = '<option value="">— Planning only —</option>' +
-    meetings.slice().reverse().map(mt => `<option value="${escHtml(mt.id)}">${escHtml(mt.date + (mt.weekLabel ? ' · ' + mt.weekLabel : ''))}</option>`).join('');
   // populate pull-meeting dropdown
   const pullSel = document.getElementById('qa-pull-meeting');
   pullSel.innerHTML = '<option value="">— Choose a meeting —</option>' +
@@ -4124,13 +4158,9 @@ function saveQuickAction() {
   const owner  = document.getElementById('qa-owner').value.trim();
   const due    = document.getElementById('qa-due').value;
   const status = document.getElementById('qa-status').value;
-  const mtgId  = document.getElementById('qa-meeting').value;
   const linkedIntervention = document.getElementById('qa-intervention').value;
-  const act = { action, owner, due, status, outcome:'', linkedProject:'', linkedIntervention };
-  if (mtgId) {
-    const mtg = meetings.find(m => m.id === mtgId);
-    if (mtg) { mtg.actions = mtg.actions||[]; mtg.actions.push(act); persistMeetings(); }
-  } else {
+  const act = { action, owner, due, status, outcome:'', linkedProject:'', linkedIntervention, _src:'planning' };
+  {
     const plan = { id:'plan-act-'+Date.now()+'-'+Math.random().toString(36).slice(2,6),
       createdDate: new Date().toISOString().split('T')[0],
       name: action, title: linkedIntervention||'', actions:[act], _src:'planning' };
