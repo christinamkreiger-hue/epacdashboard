@@ -2438,10 +2438,11 @@ function renderLog() {
           </div>`).join('')}
         </div>` : ''}
 
-        ${window.isEditMode ? `<div class="log-footer-tip">
+        ${window.isEditMode ? `<div class="log-footer-tip" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <span style="font-size:14px">ℹ</span>
           <span>Want to update this meeting?</span>
           <button class="btn btn-sm" onclick="openModal(${realIdx});event.stopPropagation()" style="margin-left:4px"><span style="font-size:13px">✎</span> Edit meeting</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteMeeting(${realIdx},event)" style="margin-left:4px"><span style="font-size:13px">🗑</span> Delete</button>
         </div>` : ''}
 
       </div>
@@ -2457,6 +2458,21 @@ function toggleLogEntry(id) {
   body.classList.toggle('open', !isOpen);
   chevron.classList.toggle('open', !isOpen);
   toggle.classList.toggle('open', !isOpen);
+}
+
+function deleteMeeting(idx, evt) {
+  if (evt) evt.stopPropagation();
+  const m = meetings[idx];
+  if (!m) return;
+  const label = m.date || 'this meeting';
+  if (!confirm(`Delete the meeting record for ${label}?\n\nThis will permanently remove all interventions, action items, and notes tied to it. This cannot be undone.`)) return;
+  meetings.splice(idx, 1);
+  persistMeetings();
+  renderLog();
+  renderIntSummary();
+  renderActSummary();
+  renderStorySummary();
+  renderLogCountLabel();
 }
 
 /* ── MODAL ── */
@@ -3745,9 +3761,10 @@ function renderActSummary() {
     <div class="card" style="margin-bottom:10px;border-left:4px solid ${statusColor(a.status)};padding:14px 16px">
       <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
         <div style="flex:1;min-width:200px">
-          <input type="text" value="${escHtml(a.action)}" placeholder="Action…" ${dis}
-            style="width:100%;font-size:14px;font-weight:600;border:none;border-bottom:1px solid var(--border);background:transparent;padding:2px 0;margin-bottom:6px;color:var(--text-primary);white-space:normal;word-break:break-word;${disStyle}"
-            onchange="${onChgAction}" />
+          <textarea rows="2" placeholder="Action…" ${dis}
+            style="width:100%;font-size:14px;font-weight:600;border:none;border-bottom:1px solid var(--border);background:transparent;padding:2px 0;margin-bottom:6px;color:var(--text-primary);resize:none;overflow:hidden;line-height:1.4;box-sizing:border-box;${disStyle}"
+            oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
+            onchange="${onChgAction}">${escHtml(a.action)}</textarea>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:4px">
             ${dateLabel}
           </div>
