@@ -1,3 +1,4 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -907,6 +908,11 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
     function unlockDashboard() {
       document.getElementById('pw-gate').classList.add('unlocked');
       document.getElementById('pw-content').style.display = 'block';
+      // Force-hide modals that rely on CSS (safety net in case CSS class stuck)
+      var _mm = document.getElementById('meeting-modal');
+      var _nm = document.getElementById('new-meeting-modal');
+      if (_mm) { _mm.style.display = 'none'; _mm.classList.remove('open'); }
+      if (_nm) { _nm.style.display = 'none'; _nm.classList.remove('open'); }
       setEditMode(false);
       setTimeout(function(){ if(typeof markSchedule==='function') markSchedule(); }, 100);
       // Auto-pull from cloud after a short delay to ensure all JS is ready
@@ -1554,7 +1560,7 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:1rem">
       <div style="font-size:13px;color:var(--text-secondary)" id="act-count-label"></div>
-      <button class="btn btn-primary" style="background:var(--green);color:#fff;border-color:var(--green);font-size:14px;padding:9px 18px" onclick="if(!window.isEditMode){showEditModePrompt();return;}openQuickActionModal()">
+      <button class="btn btn-primary" id="add-action-item-btn" style="background:var(--green);color:#fff;border-color:var(--green);font-size:14px;padding:9px 18px" onclick="handleAddActionItem()">
         <span style="font-size:16px;margin-right:4px">+</span> Add Action Item
       </button>
     </div>
@@ -1572,7 +1578,7 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
 
     <!-- Add Project Button -->
     <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
-      <button class="btn" onclick="if(!window.isEditMode){showEditModePrompt();return;}addProject()" style="background:var(--blue);color:#fff;border-color:var(--blue)">+ Add Project</button>
+      <button class="btn" id="add-project-btn" onclick="handleAddProject()" style="background:var(--blue);color:#fff;border-color:var(--blue)">+ Add Project</button>
     </div>
 
     <!-- Projects List -->
@@ -1815,7 +1821,7 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
 </div>
 
 <!-- NEW MEETING MODAL -->
-<div class="modal-overlay" id="new-meeting-modal" onclick="closeNewMeetingOnOverlay(event)">
+<div class="modal-overlay" id="new-meeting-modal" onclick="closeNewMeetingOnOverlay(event)" style="display:none">
   <div class="modal" role="dialog" aria-modal="true" style="max-width:720px">
     <div class="modal-header">
       <div>
@@ -1941,7 +1947,7 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
 </div>
 
 <!-- MEETING DETAIL MODAL -->
-<div class="modal-overlay" id="meeting-modal" onclick="closeModalOnOverlay(event)">
+<div class="modal-overlay" id="meeting-modal" onclick="closeModalOnOverlay(event)" style="display:none">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="modal-header">
       <div>
@@ -2840,7 +2846,7 @@ function openModal(idx) {
   </div>`;
 
   document.getElementById('modal-body').innerHTML = html;
-  document.getElementById('meeting-modal').classList.add('open');
+  document.getElementById('meeting-modal').style.display = 'flex';
   document.body.style.overflow = 'hidden';
   // Re-enable all inputs/buttons inside this modal (may be globally disabled in view mode)
   const meModal = document.getElementById('meeting-modal');
@@ -2849,7 +2855,7 @@ function openModal(idx) {
 }
 
 function closeModal() {
-  document.getElementById('meeting-modal').classList.remove('open');
+  document.getElementById('meeting-modal').style.display = 'none';
   document.body.style.overflow = '';
   currentModalMeetingIndex = null;
 }
@@ -3313,7 +3319,7 @@ function openNewMeetingModal() {
     }
   }
 
-  document.getElementById('new-meeting-modal').classList.add('open');
+  document.getElementById('new-meeting-modal').style.display = 'flex';
   document.body.style.overflow = 'hidden';
   // Re-enable all inputs/buttons inside this modal (may be globally disabled in view mode)
   const nmModal = document.getElementById('new-meeting-modal');
@@ -3322,7 +3328,7 @@ function openNewMeetingModal() {
 }
 
 function closeNewMeetingModal() {
-  document.getElementById('new-meeting-modal').classList.remove('open');
+  document.getElementById('new-meeting-modal').style.display = 'none';
   document.body.style.overflow = '';
 }
 
@@ -4295,6 +4301,22 @@ function qiAddAction() {
   list.appendChild(row);
 }
 
+// ── BUTTON HANDLER WRAPPERS (bypass edit-mode check complexity) ──
+window.handleAddActionItem = function() {
+  if (!window.isEditMode) { showEditModePrompt(); return; }
+  // Force-close any potentially stuck modals first
+  var mm = document.getElementById('meeting-modal');
+  var nm = document.getElementById('new-meeting-modal');
+  if (mm) mm.style.display = 'none';
+  if (nm) nm.style.display = 'none';
+  document.body.style.overflow = '';
+  openQuickActionModal();
+};
+window.handleAddProject = function() {
+  if (!window.isEditMode) { showEditModePrompt(); return; }
+  addProject();
+};
+
 // ── QUICK ACTION MODAL ──────────────────────────────────────────────
 let _qaMode = 'new';
 
@@ -4710,3 +4732,5 @@ function doImport() {
 </div><!-- /pw-content -->
 </body>
 </html>
+
+</body></html>
