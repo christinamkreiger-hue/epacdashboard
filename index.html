@@ -524,6 +524,18 @@
   .sched-badge.badge-next { background:var(--green); color:#fff; padding:5px 14px; font-size:12px; }
   .sched-badge.badge-past { background:transparent; color:var(--text-muted); }
 
+  /* ── VIEW MODE — fields look read-only but are NOT disabled so modals still work ── */
+  body:not(.edit-mode) input:not(#edit-mode-pw-input):not(.modal-overlay input):not(#quick-action-modal input):not(#quick-int-modal input),
+  body:not(.edit-mode) textarea:not(.modal-overlay textarea):not(#quick-action-modal textarea):not(#quick-int-modal textarea),
+  body:not(.edit-mode) select:not(.modal-overlay select):not(#quick-action-modal select):not(#quick-int-modal select) {
+    pointer-events: none;
+    opacity: 0.6;
+    background: var(--surface) !important;
+  }
+  /* Modals always fully interactive */
+  .modal-overlay input, .modal-overlay textarea, .modal-overlay select,
+  .modal-overlay button:not(.editor-only) { pointer-events: auto !important; opacity: 1 !important; }
+
   /* ── LOG ACCORDION ── */
   .log-entry { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: .75rem; overflow: hidden; box-shadow: var(--shadow-sm); }
   .log-entry-toggle {
@@ -925,7 +937,9 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
       );
       if (on) {
         editorEls.forEach(el => { el.disabled = false; el.style.opacity = ''; el.style.pointerEvents = ''; });
+        // Re-enable any previously hard-disabled fields
         document.querySelectorAll('input, textarea, select').forEach(el => { el.disabled = false; });
+        document.body.classList.add('edit-mode');
         const badge = document.getElementById('edit-mode-badge');
         if (badge) { badge.innerHTML = '✎ Edit Mode ON &nbsp;<button onclick="setEditMode(false)" style="font-size:10px;padding:2px 8px;border-radius:10px;border:1px solid #002D72;background:#fff;color:#002D72;cursor:pointer;font-weight:700">Exit</button>'; badge.style.background='#e8eef7'; badge.style.color='#002D72'; }
         const toggleBtn = document.getElementById('edit-mode-toggle');
@@ -934,7 +948,8 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
         if (cloudBtn) cloudBtn.style.display = '';
       } else {
         editorEls.forEach(el => { el.disabled = true; el.style.opacity = '.38'; el.style.pointerEvents = 'none'; });
-        document.querySelectorAll('input:not(#edit-mode-pw-input), textarea, select').forEach(el => { el.disabled = true; });
+        // Do NOT globally disable inputs — CSS handles view-mode appearance
+        document.body.classList.remove('edit-mode');
         const badge = document.getElementById('edit-mode-badge');
         if (badge) { badge.innerHTML = '👁 View Only'; badge.style.background='#e6f3ed'; badge.style.color='#007749'; }
         const toggleBtn = document.getElementById('edit-mode-toggle');
