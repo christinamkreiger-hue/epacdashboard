@@ -3230,9 +3230,9 @@ function renderIntSummary() {
   const lbl = document.getElementById('int-count-label');
   if (!el) return;
   const all = [];
-  meetings.forEach(m => {
-    (m.interventions || []).forEach(i => {
-      if (i.name && i.name.trim()) all.push({ ...i, date: m.date });
+  meetings.forEach((m, mi) => {
+    (m.interventions || []).forEach((i, ii) => {
+      if (i.name && i.name.trim()) all.push({ ...i, date: m.date, _mi: mi, _ii: ii });
     });
   });
   if (lbl) lbl.textContent = all.length ? all.length + ' intervention' + (all.length === 1 ? '' : 's') + ' on record' : '';
@@ -3242,27 +3242,109 @@ function renderIntSummary() {
   }
   el.innerHTML = all.slice().reverse().map(i => {
     const assignees = (i.assignedTo || '').split(',').map(s=>s.trim()).filter(Boolean);
+    const editBtn = window.isEditMode ? `<button class="btn btn-sm editor-only" style="font-size:12px;padding:3px 10px" onclick="openIntEditPanel(${i._mi},${i._ii},this)"><span style="font-size:13px">✎</span> Edit</button>` : '';
     return `
-    <div class="card" style="margin-bottom:8px;border-left:4px solid var(--blue);padding:12px 14px">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
-        <div style="flex:1;min-width:200px">
-          ${i.title ? `<div style="font-size:15px;font-weight:700;color:var(--text-primary);margin-bottom:3px">${escHtml(i.title)}</div>` : ''}
-          <div style="font-size:13px;color:var(--text-primary);${i.title?'font-weight:400;':'font-weight:600;'}margin-bottom:4px">${escHtml(i.name||'')}</div>
-          <div style="font-size:12px;color:var(--text-secondary)">${typeof i.population === 'object' ? popLabel(i.population) : (i.population || '')}</div>
+    <div class="card int-summary-card" data-mi="${i._mi}" data-ii="${i._ii}" style="margin-bottom:8px;border-left:4px solid var(--blue);padding:12px 14px">
+      <div class="int-view-mode">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <div style="flex:1;min-width:200px">
+            ${i.title ? `<div style="font-size:15px;font-weight:700;color:var(--text-primary);margin-bottom:3px">${escHtml(i.title)}</div>` : ''}
+            <div style="font-size:13px;color:var(--text-primary);${i.title?'font-weight:400;':'font-weight:600;'}margin-bottom:4px">${escHtml(i.name||'')}</div>
+            <div style="font-size:12px;color:var(--text-secondary)">${typeof i.population === 'object' ? popLabel(i.population) : (i.population || '')}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+            <div style="font-size:11px;color:var(--text-muted);white-space:nowrap">📅 ${i.date || ''}</div>
+            ${editBtn}
+          </div>
         </div>
-        <div style="font-size:11px;color:var(--text-muted);white-space:nowrap;flex-shrink:0">📅 ${i.date || ''}</div>
+        ${assignees.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center">
+          <span style="font-size:11px;color:var(--text-secondary);font-weight:600">👤 Assigned:</span>
+          ${assignees.map(a=>`<span style="font-size:11px;font-weight:600;background:var(--surface);color:var(--text-primary);border-radius:20px;padding:3px 10px;border:1px solid var(--border)">${escHtml(a)}</span>`).join('')}
+        </div>` : ''}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center">
+          ${i.metric ? `<span style="font-size:11px;font-weight:700;background:#e8eef7;color:#002D72;border-radius:20px;padding:3px 10px;border:1px solid #c5d3e8">📊 ${i.metric}</span>` : ''}
+          ${i.priority ? `<span style="font-size:11px;font-weight:700;background:#eef7f2;color:#007749;border-radius:20px;padding:3px 10px;border:1px solid #b6deca">★ ${i.priority}</span>` : ''}
+          ${i.hasBarrier === 'yes' ? '<span class="log-int-barrier-tag">⚑ Barrier</span>' : ''}
+        </div>
       </div>
-      ${assignees.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center">
-        <span style="font-size:11px;color:var(--text-secondary);font-weight:600">👤 Assigned:</span>
-        ${assignees.map(a=>`<span style="font-size:11px;font-weight:600;background:var(--surface);color:var(--text-primary);border-radius:20px;padding:3px 10px;border:1px solid var(--border)">${escHtml(a)}</span>`).join('')}
-      </div>` : ''}
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center">
-        ${i.metric ? `<span style="font-size:11px;font-weight:700;background:#e8eef7;color:#002D72;border-radius:20px;padding:3px 10px;border:1px solid #c5d3e8">📊 ${i.metric}</span>` : ''}
-        ${i.priority ? `<span style="font-size:11px;font-weight:700;background:#eef7f2;color:#007749;border-radius:20px;padding:3px 10px;border:1px solid #b6deca">★ ${i.priority}</span>` : ''}
-        ${i.hasBarrier === 'yes' ? '<span class="log-int-barrier-tag">⚑ Barrier</span>' : ''}
-      </div>
+      <div class="int-edit-mode" style="display:none"></div>
     </div>`;
   }).join('');
+}
+
+function openIntEditPanel(mi, ii, btn) {
+  const card = btn.closest('.int-summary-card');
+  const viewDiv = card.querySelector('.int-view-mode');
+  const editDiv = card.querySelector('.int-edit-mode');
+  if (editDiv.style.display !== 'none') {
+    // Already open — close without saving
+    editDiv.style.display = 'none';
+    viewDiv.style.display = '';
+    btn.innerHTML = '<span style="font-size:13px">✎</span> Edit';
+    return;
+  }
+  const i = meetings[mi]?.interventions?.[ii];
+  if (!i) return;
+  editDiv.innerHTML = `
+    <div style="display:grid;gap:10px">
+      <div>
+        <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Title</label>
+        <input class="ipe-title" type="text" value="${escHtml(i.title||'')}" placeholder="Short title…" style="width:100%" />
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Details / Description</label>
+        <input class="ipe-name" type="text" value="${escHtml(i.name||'')}" placeholder="Describe the intervention…" style="width:100%" />
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Assigned To</label>
+        <input class="ipe-assigned" type="text" value="${escHtml(i.assignedTo||'')}" placeholder="Names or roles (comma-separated)…" style="width:100%" />
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div>
+          <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Linked PBF Metric</label>
+          <select class="ipe-metric" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface)">${metricOpts(i.metric||'')}</select>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Strategic Priority</label>
+          <select class="ipe-priority" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface)">${priorityOpts(i.priority||'')}</select>
+        </div>
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Barriers present?</label>
+        <div style="display:flex;gap:12px;margin-top:4px">
+          <label style="display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer"><input type="radio" name="ipe-bar-${mi}-${ii}" class="ipe-barrier-yn" value="yes" ${i.hasBarrier==='yes'?'checked':''} onchange="document.getElementById('ipe-bdet-${mi}-${ii}').style.display='block'" /> Yes</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer"><input type="radio" name="ipe-bar-${mi}-${ii}" class="ipe-barrier-yn" value="no" ${i.hasBarrier!=='yes'?'checked':''} onchange="document.getElementById('ipe-bdet-${mi}-${ii}').style.display='none'" /> No</label>
+        </div>
+      </div>
+      <div id="ipe-bdet-${mi}-${ii}" style="display:${i.hasBarrier==='yes'?'block':'none'}">
+        <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#a02020;display:block;margin-bottom:4px">Barrier description</label>
+        <textarea class="ipe-barrier-desc" rows="2" style="width:100%" placeholder="What is getting in the way?">${escHtml(i.barrierDesc||'')}</textarea>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:4px;border-top:1px solid var(--border)">
+        <button class="btn" onclick="openIntEditPanel(${mi},${ii},this.closest('.int-summary-card').querySelector('button.btn-sm'))">Cancel</button>
+        <button class="btn btn-primary" style="background:var(--green);color:#fff;border-color:var(--green)" onclick="saveIntEdit(${mi},${ii},this)"><span>💾</span> Save</button>
+      </div>
+    </div>`;
+  viewDiv.style.display = 'none';
+  editDiv.style.display = '';
+  btn.innerHTML = '✕ Cancel';
+}
+
+function saveIntEdit(mi, ii, btn) {
+  const card = btn.closest('.int-summary-card');
+  const editDiv = card.querySelector('.int-edit-mode');
+  const i = meetings[mi]?.interventions?.[ii];
+  if (!i) return;
+  i.title = editDiv.querySelector('.ipe-title').value.trim();
+  i.name = editDiv.querySelector('.ipe-name').value.trim();
+  i.assignedTo = editDiv.querySelector('.ipe-assigned').value.trim();
+  i.metric = editDiv.querySelector('.ipe-metric').value;
+  i.priority = editDiv.querySelector('.ipe-priority').value;
+  i.hasBarrier = editDiv.querySelector('.ipe-barrier-yn[value="yes"]')?.checked ? 'yes' : 'no';
+  i.barrierDesc = editDiv.querySelector('.ipe-barrier-desc')?.value || '';
+  persistMeetings();
+  renderIntSummary();
+  renderLog();
 }
 
 /* ── ACTION SUMMARY LIST ── */
