@@ -2761,7 +2761,7 @@ function openModal(idx) {
     <div class="modal-section-title">Active interventions</div>
     <div id="me-int-list">
       ${(m.interventions||[]).map((i,ii) => `<div class="sub-card" id="me-int-${ii}" style="margin-bottom:8px;position:relative">
-        <button onclick="if(confirm('Remove this intervention?'))this.closest('.sub-card').remove()" style="position:absolute;top:8px;right:8px;background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:12px;color:var(--text-muted,#8a9ab5);padding:2px 7px;line-height:1.4;z-index:1" title="Remove intervention">✕</button>
+        <button onclick="this.closest('.sub-card').remove()" style="position:absolute;top:8px;right:8px;background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:12px;color:var(--text-muted,#8a9ab5);padding:2px 7px;line-height:1.4;z-index:1" title="Remove intervention">✕</button>
         <div class="field" style="margin-bottom:8px">
           <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);display:block;margin-bottom:4px">Title</label>
           <input type="text" class="me-int-title" value="${i.title||''}" placeholder="Short title for this intervention…" style="width:100%;padding-right:48px" />
@@ -2837,12 +2837,11 @@ function openModal(idx) {
           + '<optgroup label="Intervention">' + intTitles.map(t=>`<option value="int:${escHtml(t)}"${a.linkedIntervention===t?' selected':''}>${escHtml(t)}</option>`).join('') + '</optgroup>'
           + '<optgroup label="Projects">' + projects.map(p=>`<option value="proj:${escHtml(p.title)}"${a.linkedProject===p.title?' selected':''}>${escHtml(p.title)}</option>`).join('') + '</optgroup>'
           + '<optgroup label="Meeting">' + meetings.slice().reverse().map(mt=>`<option value="mtg:${escHtml(mt.id)}">${escHtml(mt.date)}</option>`).join('') + '</optgroup>';
-        return `<div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;gap:8px;align-items:start;margin-bottom:8px" id="me-act-${ai}">
+        return `<div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:8px;align-items:start;margin-bottom:8px" id="me-act-${ai}">
           <input type="text" class="me-act-action" value="${escHtml(a.action||'')}" placeholder="Action…" />
           <input type="text" class="me-act-owner" value="${escHtml(a.owner||'')}" placeholder="Owner…" />
           <input type="date" class="field-input me-act-due" value="${a.due||''}" />
           <select class="me-act-status">${STATUS_OPTS(a.status)}</select>
-          <select class="me-act-link" title="Link to">${linkOpts}</select>
           <button class="btn btn-sm btn-danger" onclick="this.closest('[id^=me-act-]').remove()" title="Remove" style="padding:4px 8px">✕</button>
           <input type="text" class="me-act-outcome" value="${escHtml(a.outcome||'')}" placeholder="Expected outcome…" style="grid-column:1/-1" />
         </div>`;
@@ -2950,8 +2949,8 @@ function saveBarrierUpdates() {
     due: div.querySelector('.me-act-due')?.value,
     status: div.querySelector('.me-act-status')?.value,
     outcome: div.querySelector('.me-act-outcome')?.value,
-    linkedProject: (v => v && v.startsWith('proj:') ? v.slice(5) : '')(div.querySelector('.me-act-link')?.value||''),
-    linkedIntervention: (v => v && v.startsWith('int:') ? v.slice(4) : '')(div.querySelector('.me-act-link')?.value||''),
+    linkedProject: '',
+    linkedIntervention: '',
   }));
   m.actions = standaloneActions;
 
@@ -3371,13 +3370,12 @@ function meAddAction() {
     + '<optgroup label="Meeting">' + meetings.slice().reverse().map(mt=>`<option value="mtg:${escHtml(mt.id)}">${escHtml(mt.date)}</option>`).join('') + '</optgroup>';
   const div = document.createElement('div');
   div.id = 'me-act-' + idx;
-  div.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;gap:8px;align-items:start;margin-bottom:8px';
+  div.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:8px;align-items:start;margin-bottom:8px';
   div.innerHTML = `
     <input type="text" class="me-act-action" placeholder="Action…" />
     <input type="text" class="me-act-owner" placeholder="Owner…" />
     <input type="date" class="field-input me-act-due" />
     <select class="me-act-status">${STATUS_OPTS('')}</select>
-    <select class="me-act-link" title="Link to">${linkOpts2}</select>
     <button class="btn btn-sm btn-danger" onclick="this.closest('[id^=me-act-]').remove()" title="Remove"><span>✕</span></button>
     <input type="text" class="me-act-outcome" placeholder="Expected outcome…" style="grid-column:1/-1" />
   `;
@@ -3498,15 +3496,12 @@ function meConfirmPickActions() {
     const rowIdx = list.children.length;
     const div = document.createElement('div');
     div.id = 'me-act-' + rowIdx;
-    div.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;gap:8px;align-items:start;margin-bottom:8px';
-    const curLink = a.linkedIntervention ? `int:${a.linkedIntervention}` : a.linkedProject ? `proj:${a.linkedProject}` : '';
-    const linkOptsSelected = linkOpts2.replace(`value="${curLink}"`, `value="${curLink}" selected`);
+    div.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:8px;align-items:start;margin-bottom:8px';
     div.innerHTML = `
       <input type="text" class="me-act-action" value="${escHtml(a.action||'')}" placeholder="Action…" />
       <input type="text" class="me-act-owner" value="${escHtml(a.owner||'')}" placeholder="Owner…" />
       <input type="date" class="field-input me-act-due" value="${a.due||''}" />
       <select class="me-act-status">${STATUS_OPTS(a.status||'')}</select>
-      <select class="me-act-link" title="Link to">${linkOptsSelected}</select>
       <button class="btn btn-sm btn-danger" onclick="this.closest('[id^=me-act-]').remove()" title="Remove"><span>✕</span></button>
       <input type="text" class="me-act-outcome" value="${escHtml(a.outcome||'')}" placeholder="Expected outcome…" style="grid-column:1/-1" />
     `;
