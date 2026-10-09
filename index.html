@@ -3365,6 +3365,19 @@ function openIntEditPanel(mi, ii, btn) {
         <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#a02020;display:block;margin-bottom:4px">Barrier description</label>
         <textarea class="ipe-barrier-desc" rows="2" style="width:100%" placeholder="What is getting in the way?">${escHtml(i.barrierDesc||'')}</textarea>
       </div>
+      <div style="border-top:1px dashed var(--border);padding-top:10px;margin-top:2px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);margin-bottom:6px">Action Items from this Intervention</div>
+        <div class="ipe-actions-list" style="display:grid;gap:6px">
+          ${(i.actions||[]).map(a=>`<div class="ipe-action-row" style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:6px;align-items:center">
+            <input type="text" class="ipea-action" value="${escHtml(a.action||'')}" placeholder="Action…" style="font-size:13px" />
+            <input type="text" class="ipea-owner" value="${escHtml(a.owner||'')}" placeholder="Owner…" style="font-size:13px" />
+            <input type="date" class="ipea-due" value="${escHtml(a.due||'')}" style="font-size:13px" />
+            <select class="ipea-status" style="font-size:13px">${STATUS_OPTS(a.status||'progress')}</select>
+            <button class="btn btn-sm btn-danger" onclick="this.closest('.ipe-action-row').remove()"><span>✕</span></button>
+          </div>`).join('')}
+        </div>
+        <button class="btn btn-sm" style="margin-top:6px;font-size:12px;background:var(--blue-pale);color:var(--blue);border-color:var(--blue-light)" onclick="ipeAddAction(this)"><span>+</span> Add Action Item</button>
+      </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:4px;border-top:1px solid var(--border)">
         <button class="btn" onclick="openIntEditPanel(${mi},${ii},this.closest('.int-summary-card').querySelector('button.btn-sm'))">Cancel</button>
         <button class="btn btn-primary" style="background:var(--green);color:#fff;border-color:var(--green)" onclick="saveIntEdit(${mi},${ii},this)"><span>💾</span> Save</button>
@@ -3373,14 +3386,35 @@ function openIntEditPanel(mi, ii, btn) {
   viewDiv.style.display = 'none';
   editDiv.style.display = '';
   btn.innerHTML = '✕ Cancel';
+  // Re-enable all inputs/buttons inside this edit panel
+  editDiv.querySelectorAll('input, textarea, select').forEach(el => { el.disabled = false; });
+  editDiv.querySelectorAll('button').forEach(el => { el.disabled = false; el.style.opacity = ''; el.style.pointerEvents = ''; });
+}
+
+function ipeAddAction(btn) {
+  const list = btn.previousElementSibling;
+  const row = document.createElement('div');
+  row.className = 'ipe-action-row';
+  row.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:6px;align-items:center';
+  row.innerHTML = `
+    <input type="text" class="ipea-action" placeholder="Action…" style="font-size:13px" />
+    <input type="text" class="ipea-owner" placeholder="Owner…" style="font-size:13px" />
+    <input type="date" class="ipea-due" style="font-size:13px" />
+    <select class="ipea-status" style="font-size:13px">${STATUS_OPTS('progress')}</select>
+    <button class="btn btn-sm btn-danger" onclick="this.closest('.ipe-action-row').remove()"><span>✕</span></button>
+  `;
+  list.appendChild(row);
 }
 
 function saveIntEdit(mi, ii, btn) {
   const card = btn.closest('.int-summary-card');
   const editDiv = card.querySelector('.int-edit-mode');
   const i = meetings[mi]?.interventions?.[ii];
-  if (!i) return;
-  i.title = editDiv.querySelector('.ipe-title').value.trim();
+  const m = meetings[mi];
+  if (!i || !m) return;
+  const oldTitle = i.title || '';
+  const intTitle = editDiv.querySelector('.ipe-title').value.trim() || oldTitle;
+  i.title = intTitle;
   i.name = editDiv.querySelector('.ipe-name').value.trim();
   i.assignedTo = editDiv.querySelector('.ipe-assigned').value.trim();
   i.status = editDiv.querySelector('.ipe-status').value;
@@ -3388,8 +3422,19 @@ function saveIntEdit(mi, ii, btn) {
   i.priority = editDiv.querySelector('.ipe-priority').value;
   i.hasBarrier = editDiv.querySelector('.ipe-barrier-yn[value="yes"]')?.checked ? 'yes' : 'no';
   i.barrierDesc = editDiv.querySelector('.ipe-barrier-desc')?.value || '';
+  // Collect action items from the edit panel
+  const newActs = Array.from(editDiv.querySelectorAll('.ipe-action-row')).map(row => {
+    const act = row.querySelector('.ipea-action')?.value || '';
+    if (!act.trim()) return null;
+    return { action: act, owner: row.querySelector('.ipea-owner')?.value||'', due: row.querySelector('.ipea-due')?.value||'', status: row.querySelector('.ipea-status')?.value||'progress', outcome: '', linkedProject: '', linkedIntervention: intTitle };
+  }).filter(Boolean);
+  i.actions = newActs;
+  // Merge into meeting actions: remove old linked actions for this intervention, add new ones
+  m.actions = (m.actions||[]).filter(a => !a.linkedIntervention || (a.linkedIntervention !== oldTitle && a.linkedIntervention !== intTitle));
+  m.actions = [...m.actions, ...newActs];
   persistMeetings();
   renderIntSummary();
+  renderActSummary();
   renderLog();
 }
 
