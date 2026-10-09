@@ -2465,7 +2465,37 @@ function deleteMeeting(idx, evt) {
   const m = meetings[idx];
   if (!m) return;
   const label = m.date || 'this meeting';
-  if (!confirm(`Delete the meeting record for ${label}?\n\nThis will permanently remove all interventions, action items, and notes tied to it. This cannot be undone.`)) return;
+  const hasInts = (m.interventions || []).filter(i => i.name && i.name.trim()).length;
+  const hasActs = (m.actions || []).filter(a => a.action && a.action.trim()).length;
+
+  let msg = `Delete the meeting record for ${label}?`;
+  if (hasInts || hasActs) {
+    msg += `\n\nThis meeting has ${hasInts ? hasInts + ' intervention(s)' : ''}${hasInts && hasActs ? ' and ' : ''}${hasActs ? hasActs + ' action item(s)' : ''} attached.\n\nClick OK to keep them as Planning items, or Cancel to abort.`;
+  } else {
+    msg += '\n\nThis cannot be undone.';
+  }
+
+  if (!confirm(msg)) return;
+
+  // Rescue interventions and actions as planning items
+  if (hasInts || hasActs) {
+    (m.interventions || []).forEach(i => {
+      if (!i.name || !i.name.trim()) return;
+      // Collect actions tied to this intervention
+      const intActs = (m.actions || []).filter(a => a.linkedIntervention && (a.linkedIntervention === i.title || a.linkedIntervention === i.name));
+      const plan = { id: 'plan-' + Date.now() + '-' + Math.random().toString(36).slice(2,6), createdDate: m.date || new Date().toISOString().split('T')[0], title: i.title, name: i.name, assignedTo: i.assignedTo, status: i.status || 'planning', population: i.population, metric: i.metric, priority: i.priority, hasBarrier: i.hasBarrier, barrierDesc: i.barrierDesc, actions: intActs.length ? intActs : (i.actions || []) };
+      planningItems.push(plan);
+    });
+    // Also rescue standalone actions (not linked to any intervention)
+    const rescuedIntTitles = new Set((m.interventions||[]).flatMap(i => [i.title, i.name].filter(Boolean)));
+    (m.actions || []).forEach(a => {
+      if (!a.action || !a.action.trim()) return;
+      if (a.linkedIntervention && rescuedIntTitles.has(a.linkedIntervention)) return; // already rescued with its intervention
+      planningItems.push({ id: 'plan-act-' + Date.now() + '-' + Math.random().toString(36).slice(2,6), createdDate: m.date || new Date().toISOString().split('T')[0], title: '', name: a.action, assignedTo: a.owner || '', status: 'planning', population: {}, metric: '', priority: '', hasBarrier: 'no', barrierDesc: '', actions: [{ ...a }] });
+    });
+    persistPlanning();
+  }
+
   meetings.splice(idx, 1);
   persistMeetings();
   renderLog();
