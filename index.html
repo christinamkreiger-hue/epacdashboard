@@ -1992,11 +1992,20 @@ let meetings = [];
 try {
   const saved = localStorage.getItem('epac_meetings');
   if (saved) meetings = JSON.parse(saved);
-  // One-time cleanup: remove intervention-sourced actions from m.actions
-  // (they belong inside m.interventions[].actions, not duplicated in m.actions)
+  // Cleanup: remove intervention-sourced actions from m.actions (they live in m.interventions[].actions)
+  // Also deduplicate any remaining actions by action text+owner+due to fix legacy doubles
   meetings.forEach(m => {
     if (Array.isArray(m.actions)) {
+      // First strip any with linkedIntervention set
       m.actions = m.actions.filter(a => !(a.linkedIntervention && a.linkedIntervention.trim()));
+      // Then deduplicate by action text + owner + due (keeps first occurrence)
+      const seen = new Set();
+      m.actions = m.actions.filter(a => {
+        const key = (a.action||'').trim() + '|' + (a.owner||'') + '|' + (a.due||'');
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
     }
   });
 } catch(e) { console.warn('Could not restore meetings:', e); }
@@ -2036,10 +2045,17 @@ function _applyCloudData(data) {
   let changed = false;
   if (data.meetings && Array.isArray(data.meetings) && data.meetings.length > 0) {
     meetings = data.meetings;
-    // Cleanup: strip intervention-sourced duplicates from m.actions
+    // Cleanup: strip intervention-sourced duplicates from m.actions; also dedup by content
     meetings.forEach(m => {
       if (Array.isArray(m.actions)) {
         m.actions = m.actions.filter(a => !(a.linkedIntervention && a.linkedIntervention.trim()));
+        const seen = new Set();
+        m.actions = m.actions.filter(a => {
+          const key = (a.action||'').trim() + '|' + (a.owner||'') + '|' + (a.due||'');
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
       }
     });
     try { localStorage.setItem('epac_meetings', JSON.stringify(meetings)); } catch(e) {}
@@ -3705,14 +3721,14 @@ function saveNewMeeting() {
     });
   });
 
-  // Actions — standalone + from interventions
+  // Actions — standalone only (intervention actions are stored inside each intervention's .actions array)
   const actions = [];
   document.querySelectorAll('#nm-action-body tr').forEach(tr => {
     const ins = tr.querySelectorAll('input, select');
     const act = ins[0]?.value;
     if (act) actions.push({ action: act, owner: ins[1]?.value, due: ins[2]?.value, outcome: '', status: ins[3]?.value, linkedProject: tr.querySelector('.nm-act-project')?.value || '', linkedIntervention: '' });
   });
-  actions.push(...intActionItems);
+  // Note: intActionItems are stored inside interventions[].actions — do NOT merge into meeting.actions
 
   const meeting = {
     id: 'mtg-' + Date.now(),
