@@ -3400,13 +3400,39 @@ function meConfirmPickActions() {
     + '<optgroup label="Projects">' + projects.map(p=>`<option value="proj:${escHtml(p.title)}">${escHtml(p.title)}</option>`).join('') + '</optgroup>'
     + '<optgroup label="Meeting">' + meetings.slice().reverse().map(mt=>`<option value="mtg:${escHtml(mt.id)}">${escHtml(mt.date)}</option>`).join('') + '</optgroup>';
 
-  checked.forEach(cb => {
-    const a = allActions[parseInt(cb.value)];
-    const idx = list.children.length;
+  // Sort descending so splicing by index doesn't shift later indices
+  const selectedIndices = checked.map(cb => parseInt(cb.value)).sort((a,b) => b - a);
+
+  selectedIndices.forEach(idx => {
+    const a = allActions[idx];
+
+    // ── Remove from original source so it doesn't appear twice ──
+    if (a._fromMtgId) {
+      const srcMtg = meetings.find(m => m.id === a._fromMtgId);
+      if (srcMtg && srcMtg.actions) {
+        // Match by action text + owner as identity key
+        const rmIdx = srcMtg.actions.findIndex(x => x.action === a.action && x.owner === a.owner);
+        if (rmIdx !== -1) srcMtg.actions.splice(rmIdx, 1);
+      }
+    } else if (a._fromProj) {
+      const srcProj = projects.find(p => p.title === a._fromProj);
+      if (srcProj && srcProj.actions) {
+        const rmIdx = srcProj.actions.findIndex(x => x.action === a.action && x.owner === a.owner);
+        if (rmIdx !== -1) srcProj.actions.splice(rmIdx, 1);
+      }
+    } else if (a._fromPlan) {
+      const srcPlan = planningItems.find(p => (p.title||'Planning') === a._fromPlan);
+      if (srcPlan && srcPlan.actions) {
+        const rmIdx = srcPlan.actions.findIndex(x => x.action === a.action && x.owner === a.owner);
+        if (rmIdx !== -1) srcPlan.actions.splice(rmIdx, 1);
+      }
+    }
+
+    // ── Add row to the meeting edit modal ──
+    const rowIdx = list.children.length;
     const div = document.createElement('div');
-    div.id = 'me-act-' + idx;
+    div.id = 'me-act-' + rowIdx;
     div.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;gap:8px;align-items:start;margin-bottom:8px';
-    // Pre-select current link value
     const curLink = a.linkedIntervention ? `int:${a.linkedIntervention}` : a.linkedProject ? `proj:${a.linkedProject}` : '';
     const linkOptsSelected = linkOpts2.replace(`value="${curLink}"`, `value="${curLink}" selected`);
     div.innerHTML = `
@@ -3420,6 +3446,11 @@ function meConfirmPickActions() {
     `;
     list.appendChild(div);
   });
+
+  // Persist removals from source stores immediately
+  persistMeetings();
+  persistProjects();
+  persistPlanning();
 
   document.getElementById('me-pick-overlay').remove();
 }
