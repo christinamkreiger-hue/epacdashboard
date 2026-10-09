@@ -3795,7 +3795,7 @@ function renderActSummary() {
     const projOpts = projects.length
       ? '<option value="">— None —</option>' + projects.map(p=>`<option value="${escHtml(p.title)}"${p.title===a.linkedProject?' selected':''}>${escHtml(p.title)}</option>`).join('')
       : '<option value="">No projects saved</option>';
-    const dateLabel = isPlan ? '<span style="font-size:11px;color:#b45309;font-style:italic">📋 Planning (no meeting)</span>'
+    const dateLabel = isPlan ? ''
       : `<span style="font-size:11px;color:var(--text-muted)">📅 ${a.date||'No date'}${a.weekLabel?' · '+a.weekLabel:''}</span>`;
     return `
     <div class="card" style="margin-bottom:10px;border-left:4px solid ${statusColor(a.status)};padding:14px 16px">
@@ -3830,16 +3830,24 @@ function renderActSummary() {
             onchange="${onChgDue}" />
         </div>
         <div>
-          <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);display:block;margin-bottom:3px">Linked intervention</label>
+          <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);display:block;margin-bottom:3px">Link to</label>
           ${isProj
             ? `<div style="font-size:13px;color:var(--text-secondary);padding:5px 0">${escHtml(a.linkedProject||'—')}</div>`
             : `<select style="width:100%;font-size:13px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);${disStyle}"
                 onchange="${isPlan ? `updatePlanningAction(${planI},${ai},'linkedIntervention',this.value)` : `updateAction(${mi},${ai},'linkedIntervention',this.value)`}" ${dis}>
                 <option value="">— None —</option>
-                ${meetings.flatMap(m => (m.interventions||[]).map(i => i.title||i.name)).filter(Boolean)
-                  .concat(planningItems.map(p => p.title||p.name).filter(Boolean))
-                  .filter((v,i,arr)=>arr.indexOf(v)===i)
-                  .map(t => `<option value="${escHtml(t)}"${a.linkedIntervention===t?' selected':''}>${escHtml(t)}</option>`).join('')}
+                ${(() => {
+                  const intTitles = meetings.flatMap(m => (m.interventions||[]).map(i => i.title||i.name)).filter(Boolean)
+                    .concat(planningItems.map(p => p.title||p.name).filter(Boolean))
+                    .filter((v,i,arr) => arr.indexOf(v)===i);
+                  const projTitles = projects.map(p => p.title).filter(Boolean);
+                  const mtgLabels = meetings.map(m => m.date + (m.weekLabel ? ' · '+m.weekLabel : '')).filter(Boolean);
+                  let opts = '';
+                  if (intTitles.length) opts += `<optgroup label="Interventions">${intTitles.map(t=>`<option value="${escHtml(t)}"${a.linkedIntervention===t?' selected':''}>${escHtml(t)}</option>`).join('')}</optgroup>`;
+                  if (projTitles.length) opts += `<optgroup label="Projects">${projTitles.map(t=>`<option value="${escHtml(t)}"${a.linkedIntervention===t?' selected':''}>${escHtml(t)}</option>`).join('')}</optgroup>`;
+                  if (mtgLabels.length) opts += `<optgroup label="Meetings">${mtgLabels.map(t=>`<option value="${escHtml(t)}"${a.linkedIntervention===t?' selected':''}>${escHtml(t)}</option>`).join('')}</optgroup>`;
+                  return opts;
+                })()}
               </select>`
           }
         </div>
@@ -3853,7 +3861,6 @@ function renderActSummary() {
             ? `<span style="font-size:11px;font-weight:700;background:#fff7ed;color:#b45309;border-radius:20px;padding:3px 10px;border:1px solid #fcd9a0">📋 Intervention</span>`
             : `<span style="font-size:11px;font-weight:700;background:var(--blue-pale);color:var(--blue);border-radius:20px;padding:3px 10px;border:1px solid var(--blue-light)">🗓 Meeting Action Item</span>`
           }
-          ${a.linkedIntervention && isPlan ? `<span style="font-size:11px;font-weight:700;background:#f0eafa;color:#5b2d8e;border-radius:20px;padding:3px 10px;border:1px solid #d4baf5">🔗 ${escHtml(a.linkedIntervention)}</span>` : ''}
         </div>
         ${window.isEditMode ? `<button class="btn btn-sm btn-danger" onclick="${isProj ? `deleteProjectAction(${projI},${ai})` : isPlan ? `deletePlanningAction(${planI},${ai})` : `deleteMeetingAction(${mi},${ai})`}" style="font-size:12px;padding:3px 10px">🗑 Remove</button>` : ''}
       </div>
