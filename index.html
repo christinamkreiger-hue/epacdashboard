@@ -3917,11 +3917,10 @@ function renderActSummary() {
                     .concat(planningItems.map(p => p.title||p.name).filter(Boolean))
                     .filter((v,i,arr) => arr.indexOf(v)===i);
                   const projTitles = projects.map(p => p.title).filter(Boolean);
-                  const mtgLabels = meetings.map(m => m.date + (m.weekLabel ? ' · '+m.weekLabel : '')).filter(Boolean);
+
                   let opts = '';
                   if (intTitles.length) opts += `<optgroup label="Interventions">${intTitles.map(t=>`<option value="${escHtml(t)}"${a.linkedIntervention===t?' selected':''}>${escHtml(t)}</option>`).join('')}</optgroup>`;
                   if (projTitles.length) opts += `<optgroup label="Projects">${projTitles.map(t=>`<option value="${escHtml(t)}"${a.linkedIntervention===t?' selected':''}>${escHtml(t)}</option>`).join('')}</optgroup>`;
-                  if (mtgLabels.length) opts += `<optgroup label="Meetings">${mtgLabels.map(t=>`<option value="${escHtml(t)}"${a.linkedIntervention===t?' selected':''}>${escHtml(t)}</option>`).join('')}</optgroup>`;
                   return opts;
                 })()}
               </select>`
