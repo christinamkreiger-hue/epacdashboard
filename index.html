@@ -2071,6 +2071,16 @@ function _applyCloudData(data) {
   if (!data) return false;
   let changed = false;
   if (data.meetings && Array.isArray(data.meetings) && data.meetings.length > 0) {
+    // Safety check: never apply cloud data that has FEWER total interventions than what's in localStorage
+    // This prevents a cloud wipe from overwriting locally-entered data that hasn't synced yet
+    const cloudIntCount = data.meetings.reduce((n, m) => n + (m.interventions||[]).length, 0);
+    const localIntCount = (meetings||[]).reduce((n, m) => n + (m.interventions||[]).length, 0);
+    if (cloudIntCount < localIntCount) {
+      console.warn('[EPAC] Cloud has fewer interventions (' + cloudIntCount + ') than local (' + localIntCount + ') — skipping cloud overwrite to protect local data');
+      // Still push local data back to cloud so cloud catches up
+      setTimeout(function() { try { if (typeof saveToSheet === 'function') saveToSheet(); } catch(e) {} }, 500);
+      return false;
+    }
     meetings = data.meetings;
     // Cleanup: dedup interventions, strip intervention-sourced actions, dedup actions
     meetings.forEach(m => {
@@ -2125,8 +2135,8 @@ function _applyCloudData(data) {
 window._loadSheetData = function() {
   loadFromSheet(function(data) {
     _applyCloudData(data);
-    // Push cleaned data back to cloud so duplicates don't re-infect on next load
-    setTimeout(function() { if (typeof saveToSheet === 'function') saveToSheet(); }, 1500);
+    // Note: do NOT auto-push back to cloud here — _applyCloudData already handles
+    // the case where local has more data than cloud (it pushes local up in that case)
   });
 };
 
