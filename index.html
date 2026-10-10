@@ -165,7 +165,7 @@
   }
   /* View-only: only restrict action buttons — never hide or dim content */
   body.view-only #save-btn { display: none !important; }
-  body.view-only .btn:not(.nav-tab):not(.modal-close):not(#fix-dup-btn-header) {
+  body.view-only .btn:not(.nav-tab):not(.modal-close):not(#fix-dup-btn-header):not(#wipe-int-btn) {
     pointer-events: none;
     opacity: .45;
     cursor: not-allowed;
@@ -932,6 +932,8 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
         if (cloudBtn) cloudBtn.style.display = '';
         const fixBtn = document.getElementById('fix-dup-btn-header');
         if (fixBtn) fixBtn.style.display = '';
+        const wipeBtn = document.getElementById('wipe-int-btn');
+        if (wipeBtn) wipeBtn.style.display = '';
       } else {
         editorEls.forEach(el => { el.disabled = true; el.style.opacity = '.38'; el.style.pointerEvents = 'none'; });
         /* NOTE: we do NOT disable inputs/selects/textareas globally — modals must stay functional */
@@ -944,6 +946,8 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
         if (cloudBtn2) cloudBtn2.style.display = 'none';
         const fixBtn2 = document.getElementById('fix-dup-btn-header');
         if (fixBtn2) fixBtn2.style.display = 'none';
+        const wipeBtn2 = document.getElementById('wipe-int-btn');
+        if (wipeBtn2) wipeBtn2.style.display = 'none';
       }
       // Re-render so edit/delete buttons appear or disappear
       if (typeof renderLog === 'function') renderLog();
@@ -1109,6 +1113,7 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
       <button id="refresh-btn" onclick="manualPullFromCloud(this)" style="display:none;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;border:1px solid #b8cce8;background:#e8eef7;color:#002D72;cursor:pointer" title="Refresh data from cloud">↻ Refresh</button>
       <button id="cloud-save-btn" onclick="cloudSaveWithFeedback(this)" style="display:none;font-size:12px;font-weight:700;padding:5px 12px;border-radius:20px;border:1px solid #007749;background:#e6f3ed;color:#007749;cursor:pointer">☁ Save to Cloud</button>
       <button id="fix-dup-btn-header" onclick="fixAllDuplicates()" style="display:none;font-size:12px;font-weight:700;padding:5px 12px;border-radius:20px;border:1px solid #b45309;background:#fff8e1;color:#b45309;cursor:pointer" title="Remove duplicate interventions from all meetings and sync to cloud">🔧 Fix Duplicates</button>
+      <button id="wipe-int-btn" onclick="wipeAllInterventions()" style="display:none;font-size:12px;font-weight:700;padding:5px 12px;border-radius:20px;border:1px solid #c0392b;background:#fdecea;color:#c0392b;cursor:pointer" title="Wipe ALL interventions from all meetings and cloud — start fresh">🗑 Wipe Interventions</button>
       <button id="edit-mode-toggle" class="btn btn-sm" onclick="isEditMode ? setEditMode(false) : showEditModePrompt()" style="font-size:12px;padding:5px 12px;background:var(--blue-pale);color:var(--blue);border-color:var(--blue-light)">✎ Enable Editing</button>
       <button class="btn btn-sm editor-only" onclick="showDataModal()" title="Export or import data" style="display:none;font-size:12px;padding:5px 12px;background:#f5f5f5;color:var(--text-secondary);border-color:var(--border)">⇄ Data Backup</button>
       <span id="edit-mode-badge" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;padding:5px 12px;border-radius:20px;background:#e6f3ed;color:#007749;box-shadow:0 2px 8px rgba(0,0,0,.12)">👁 View Only</span>
@@ -2946,47 +2951,30 @@ document.addEventListener('click', function(e) {
   }
 });
 
-// ── One-time cleanup: deduplicate all interventions and push clean data to cloud ──
+// ── Nuclear dedup: collapse all interventions to unique set across ALL meetings ──
 function fixAllDuplicates() {
   let totalRemoved = 0;
 
-  // Pass 1: within-meeting dedup (blanks and exact duplicates)
-  meetings.forEach(m => {
-    const before = (m.interventions||[]).length;
-    if (Array.isArray(m.interventions)) {
-      const seenInt = new Set();
-      let blankCount = 0;
-      m.interventions = m.interventions.filter(i => {
-        const isBlank = (i.title||'').trim() === '' && (i.name||'').trim() === '';
-        if (isBlank) { blankCount++; return blankCount <= 1; }
-        const key = (i.title||'').trim().toLowerCase() + '||' + (i.name||'').trim().toLowerCase();
-        if (seenInt.has(key)) return false;
-        seenInt.add(key);
-        return true;
-      });
-    }
-    totalRemoved += before - (m.interventions||[]).length;
+  // STEP 1: Collect every unique intervention across all meetings (latest meeting wins)
+  const masterMap = new Map(); // key -> {intervention, meetingIdx}
+  meetings.forEach((m, mi) => {
+    (m.interventions || []).forEach(i => {
+      const t = (i.title||'').trim();
+      const n = (i.name||'').trim();
+      if (!t && !n) return; // skip blanks entirely
+      const key = t.toLowerCase() + '||' + n.toLowerCase();
+      // Always overwrite — last (latest meeting) wins
+      masterMap.set(key, { i, mi });
+    });
   });
 
-  // Pass 2: cross-meeting dedup — keep intervention only in the LATEST meeting that has it
-  // (walk meetings in reverse so the latest occurrence "wins" and earlier ones get removed)
-  const globalSeen = new Set();
-  for (let mi = meetings.length - 1; mi >= 0; mi--) {
-    const m = meetings[mi];
-    if (!Array.isArray(m.interventions)) continue;
-    const before = m.interventions.length;
-    m.interventions = m.interventions.filter(i => {
-      const isBlank = (i.title||'').trim() === '' && (i.name||'').trim() === '';
-      if (isBlank) return true; // blanks are per-meeting, don't cross-dedup
-      const key = (i.title||'').trim().toLowerCase() + '||' + (i.name||'').trim().toLowerCase();
-      if (globalSeen.has(key)) return false; // already kept in a later meeting
-      globalSeen.add(key);
-      return true;
-    });
-    totalRemoved += before - m.interventions.length;
-  }
+  // STEP 2: Wipe interventions from ALL meetings, then place each unique one in its winning meeting
+  meetings.forEach(m => { m.interventions = []; });
+  masterMap.forEach(({i, mi}) => {
+    meetings[mi].interventions.push(i);
+  });
 
-  // Pass 3: deduplicate actions within each meeting
+  // STEP 3: Strip linked-intervention actions (they're stored inside interventions now)
   meetings.forEach(m => {
     if (Array.isArray(m.actions)) {
       m.actions = m.actions.filter(a => !(a.linkedIntervention && a.linkedIntervention.trim()));
@@ -3000,20 +2988,23 @@ function fixAllDuplicates() {
     }
   });
 
-  // Persist clean data to localStorage AND push to cloud
+  totalRemoved = masterMap.size; // report how many unique interventions survived
+
+  // STEP 4: Save to localStorage AND push to cloud
   try { localStorage.setItem('epac_meetings', JSON.stringify(meetings)); } catch(e) {}
   if (typeof saveToSheet === 'function') saveToSheet();
   if (typeof renderLog === 'function') renderLog();
-  // If a meeting edit modal is open, re-render it so user sees clean data immediately
+  if (typeof renderIntSummary === 'function') renderIntSummary();
+  // Re-render open modal if any
   if (typeof currentModalMeetingIndex === 'number' && currentModalMeetingIndex !== null) {
-    if (typeof openBarrierModal === 'function') openBarrierModal(currentModalMeetingIndex);
+    if (typeof openModal === 'function') openModal(currentModalMeetingIndex);
   }
-  // Update both buttons (header + modal) to show result
-  const msg = totalRemoved > 0 ? '✓ Removed ' + totalRemoved + ' duplicate(s)!' : '✓ No duplicates found';
+
+  // Update both buttons
+  const msg = '✓ Consolidated to ' + totalRemoved + ' unique intervention(s) — saved to cloud';
   ['fix-dup-btn-header', 'fix-dup-btn'].forEach(id => {
     const btn = document.getElementById(id);
     if (!btn) return;
-    const origHTML = btn.innerHTML;
     const origBg = btn.style.background;
     const origColor = btn.style.color;
     btn.innerHTML = msg;
@@ -3027,6 +3018,52 @@ function fixAllDuplicates() {
       btn.style.borderColor = '';
     }, 4000);
   });
+}
+
+// ── Nuclear wipe: remove ALL interventions from every meeting and from planningItems ──
+function wipeAllInterventions() {
+  const btn = document.getElementById('wipe-int-btn');
+  if (btn) { btn.innerHTML = '⏳ Wiping…'; btn.style.opacity = '.6'; btn.style.pointerEvents = 'none'; }
+
+  // Wipe interventions from every meeting
+  meetings.forEach(m => { m.interventions = []; });
+
+  // Wipe planningItems entirely
+  planningItems = [];
+  try { localStorage.setItem('epac-planning', JSON.stringify([])); } catch(e) {}
+
+  // Save meetings to localStorage
+  try { localStorage.setItem('epac_meetings', JSON.stringify(meetings)); } catch(e) {}
+
+  // Push to cloud
+  if (typeof saveToSheet === 'function') saveToSheet();
+
+  // Re-render everything
+  if (typeof renderLog === 'function') renderLog();
+  if (typeof renderIntSummary === 'function') renderIntSummary();
+  if (typeof renderActSummary === 'function') renderActSummary();
+
+  // Close modal if open
+  if (typeof currentModalMeetingIndex === 'number' && currentModalMeetingIndex !== null) {
+    if (typeof closeModal === 'function') closeModal();
+  }
+
+  setTimeout(() => {
+    if (btn) {
+      btn.innerHTML = '✓ All interventions wiped — start fresh!';
+      btn.style.background = '#007749';
+      btn.style.color = '#fff';
+      btn.style.borderColor = '#007749';
+      btn.style.opacity = '1';
+      btn.style.pointerEvents = '';
+      setTimeout(() => {
+        btn.innerHTML = '🗑 Wipe Interventions';
+        btn.style.background = '';
+        btn.style.color = '';
+        btn.style.borderColor = '';
+      }, 5000);
+    }
+  }, 1000);
 }
 
 function saveBarrierUpdates() {
@@ -3086,6 +3123,17 @@ function saveBarrierUpdates() {
       actions: intActions,
     };
   }).filter(Boolean);
+
+  // Final dedup of interventions after DOM read — belt-and-suspenders
+  { const _s = new Set();
+    m.interventions = m.interventions.filter(i => {
+      const t = (i.title||'').trim().toLowerCase(), n = (i.name||'').trim().toLowerCase();
+      if (!t && !n) return false; // drop blank interventions on save
+      const k = t + '||' + n;
+      if (_s.has(k)) return false;
+      _s.add(k); return true;
+    });
+  }
 
   // Barriers (kept in case legacy data has them)
   m.barriers = Array.from(document.querySelectorAll('#me-bar-list .modal-barrier-item')).map(div => ({
