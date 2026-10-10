@@ -4314,39 +4314,32 @@ function renderActSummary() {
   const lbl = document.getElementById('act-count-label');
   if (!el) return;
 
-  // Track seen action keys to avoid cross-source duplicates
-  const seenActKeys = new Set();
-  const dedup = (a) => {
-    const k = (a.action||'').trim().toLowerCase() + '||' + (a.owner||'').trim().toLowerCase() + '||' + (a.due||'');
-    if (!k || k === '||||') return false;
-    if (seenActKeys.has(k)) return false;
-    seenActKeys.add(k);
-    return true;
-  };
+  // Collect ALL action items from every source — dedup after, preferring most-specific source
+  const raw = [];
 
-  // Collect all action items with references back to their source
-  const all = [];
-
-  // 1. Meeting-level standalone actions (NOT linked to an intervention — those come from interventions directly)
-  meetings.forEach((m, mi) => {
-    (m.actions || []).forEach((a, ai) => {
-      if (!a.action || !a.action.trim()) return;
-      if (a.linkedIntervention && a.linkedIntervention.trim()) return; // skip — will be picked up from intervention
-      if (!dedup(a)) return;
-      all.push({ ...a, meetingIdx: mi, actionIdx: ai, date: m.date, weekLabel: m.weekLabel, _src: 'meeting', _meetingDate: m.date });
-    });
-  });
-
-  // 2. Intervention-level actions (inside meetings[].interventions[].actions[])
+  // 1. Intervention-level actions (highest priority — most specific source)
   meetings.forEach((m, mi) => {
     (m.interventions || []).forEach((iv, ii) => {
       (iv.actions || []).forEach((a, ai) => {
         if (!a.action || !a.action.trim()) return;
-        if (!dedup(a)) return;
-        all.push({ ...a, meetingIdx: mi, intIdx: ii, actionIdx: ai, date: m.date, weekLabel: m.weekLabel,
-          linkedIntervention: a.linkedIntervention || iv.title || iv.name,
-          _src: 'intervention', _meetingDate: m.date, _intTitle: iv.title || iv.name });
+        raw.push({ ...a, meetingIdx: mi, intIdx: ii, actionIdx: ai, date: m.date, weekLabel: m.weekLabel,
+          linkedIntervention: iv.title || iv.name || a.linkedIntervention || '',
+          _src: 'intervention', _meetingDate: m.date, _intTitle: iv.title || iv.name, _priority: 0 });
       });
+    });
+  });
+
+  // 2. Meeting-level actions that are linked to an intervention (same action, lower priority)
+  meetings.forEach((m, mi) => {
+    (m.actions || []).forEach((a, ai) => {
+      if (!a.action || !a.action.trim()) return;
+      if (a.linkedIntervention && a.linkedIntervention.trim()) {
+        raw.push({ ...a, meetingIdx: mi, actionIdx: ai, date: m.date, weekLabel: m.weekLabel,
+          _src: 'meeting-linked', _meetingDate: m.date, _priority: 1 });
+      } else {
+        raw.push({ ...a, meetingIdx: mi, actionIdx: ai, date: m.date, weekLabel: m.weekLabel,
+          _src: 'meeting', _meetingDate: m.date, _priority: 2 });
+      }
     });
   });
 
@@ -4354,19 +4347,30 @@ function renderActSummary() {
   projects.forEach((p, pi) => {
     (p.actions || []).forEach((a, ai) => {
       if (!a.action || !a.action.trim()) return;
-      if (!dedup(a)) return;
-      all.push({ ...a, projectIdx: pi, actionIdx: ai, date: a.linkedMeeting || '', weekLabel: '', linkedProject: p.title, _src: 'project' });
+      raw.push({ ...a, projectIdx: pi, actionIdx: ai, date: a.linkedMeeting || '', weekLabel: '',
+        linkedProject: p.title, _src: 'project', _priority: 3 });
     });
   });
 
-  // 4. Planning items (standalone interventions not yet attached to a meeting)
+  // 4. Planning items (standalone interventions not yet in a meeting)
   planningItems.forEach((p, pi) => {
     (p.actions || []).forEach((a, ai) => {
       if (!a.action || !a.action.trim()) return;
-      if (!dedup(a)) return;
-      all.push({ ...a, planIdx: pi, actionIdx: ai, date: '', weekLabel: '', linkedIntervention: p.title || p.name, _src: 'planning' });
+      raw.push({ ...a, planIdx: pi, actionIdx: ai, date: '', weekLabel: '',
+        linkedIntervention: p.title || p.name, _src: 'planning', _priority: 4 });
     });
   });
+
+  // Dedup: for same action text+owner+due, keep lowest _priority (most specific source)
+  const dedupMap = new Map();
+  raw.forEach(a => {
+    const k = (a.action||'').trim().toLowerCase() + '||' + (a.owner||'').trim().toLowerCase() + '||' + (a.due||'');
+    if (!k || k === '||||') return;
+    const existing = dedupMap.get(k);
+    if (!existing || a._priority < existing._priority) dedupMap.set(k, a);
+  });
+  // Also include any that had no dedup key (blank key) — show once each
+  const all = Array.from(dedupMap.values());
 
   const filtered = all;
   const open = all.filter(a => a.status !== 'done').length;
@@ -4394,7 +4398,7 @@ function renderActSummary() {
   el.innerHTML = filtered.slice().reverse().map(a => {
     const isProj = a._src === 'project';
     const isPlan = a._src === 'planning';
-    const isInt  = a._src === 'intervention';
+    const isInt  = a._src === 'intervention' || a._src === 'meeting-linked';
     const mi = a.meetingIdx, projI = a.projectIdx, planI = a.planIdx, ai = a.actionIdx;
     const ii = a.intIdx;
     const onChgAction  = isProj ? `updateProjectAction(${projI},${ai},'action',this.value)`  : isPlan ? `updatePlanningAction(${planI},${ai},'action',this.value)` : isInt ? `updateIntAction(${mi},${ii},${ai},'action',this.value)` : `updateAction(${mi},${ai},'action',this.value)`;
