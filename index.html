@@ -3471,6 +3471,9 @@ function addProject() {
   setTimeout(() => document.getElementById('proj-title-0')?.focus(), 50);
 }
 
+// Alias — button calls handleAddProject, function is addProject
+function handleAddProject() { addProject(); }
+
 function escHtml(s) {
   return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
@@ -4300,21 +4303,58 @@ function renderActSummary() {
   const el = document.getElementById('act-summary-list');
   const lbl = document.getElementById('act-count-label');
   if (!el) return;
-  // Collect all action items with references back to their meeting/index
+
+  // Track seen action keys to avoid cross-source duplicates
+  const seenActKeys = new Set();
+  const dedup = (a) => {
+    const k = (a.action||'').trim().toLowerCase() + '||' + (a.owner||'').trim().toLowerCase() + '||' + (a.due||'');
+    if (!k || k === '||||') return false;
+    if (seenActKeys.has(k)) return false;
+    seenActKeys.add(k);
+    return true;
+  };
+
+  // Collect all action items with references back to their source
   const all = [];
+
+  // 1. Meeting-level standalone actions (NOT linked to an intervention — those come from interventions directly)
   meetings.forEach((m, mi) => {
     (m.actions || []).forEach((a, ai) => {
-      if (a.action && a.action.trim()) all.push({ ...a, meetingIdx: mi, actionIdx: ai, date: m.date, weekLabel: m.weekLabel, _src: 'meeting' });
+      if (!a.action || !a.action.trim()) return;
+      if (a.linkedIntervention && a.linkedIntervention.trim()) return; // skip — will be picked up from intervention
+      if (!dedup(a)) return;
+      all.push({ ...a, meetingIdx: mi, actionIdx: ai, date: m.date, weekLabel: m.weekLabel, _src: 'meeting', _meetingDate: m.date });
     });
   });
+
+  // 2. Intervention-level actions (inside meetings[].interventions[].actions[])
+  meetings.forEach((m, mi) => {
+    (m.interventions || []).forEach((iv, ii) => {
+      (iv.actions || []).forEach((a, ai) => {
+        if (!a.action || !a.action.trim()) return;
+        if (!dedup(a)) return;
+        all.push({ ...a, meetingIdx: mi, intIdx: ii, actionIdx: ai, date: m.date, weekLabel: m.weekLabel,
+          linkedIntervention: a.linkedIntervention || iv.title || iv.name,
+          _src: 'intervention', _meetingDate: m.date, _intTitle: iv.title || iv.name });
+      });
+    });
+  });
+
+  // 3. Project-level actions
   projects.forEach((p, pi) => {
     (p.actions || []).forEach((a, ai) => {
-      if (a.action && a.action.trim()) all.push({ ...a, projectIdx: pi, actionIdx: ai, date: a.linkedMeeting || '', weekLabel: '', linkedProject: p.title, _src: 'project' });
+      if (!a.action || !a.action.trim()) return;
+      if (!dedup(a)) return;
+      all.push({ ...a, projectIdx: pi, actionIdx: ai, date: a.linkedMeeting || '', weekLabel: '', linkedProject: p.title, _src: 'project' });
     });
   });
+
+  // 4. Planning items (standalone interventions not yet attached to a meeting)
   planningItems.forEach((p, pi) => {
     (p.actions || []).forEach((a, ai) => {
-      if (a.action && a.action.trim()) all.push({ ...a, planIdx: pi, actionIdx: ai, date: '', weekLabel: '', linkedIntervention: p.title || p.name, _src: 'planning' });
+      if (!a.action || !a.action.trim()) return;
+      if (!dedup(a)) return;
+      all.push({ ...a, planIdx: pi, actionIdx: ai, date: '', weekLabel: '', linkedIntervention: p.title || p.name, _src: 'planning' });
     });
   });
 
@@ -4344,11 +4384,13 @@ function renderActSummary() {
   el.innerHTML = filtered.slice().reverse().map(a => {
     const isProj = a._src === 'project';
     const isPlan = a._src === 'planning';
+    const isInt  = a._src === 'intervention';
     const mi = a.meetingIdx, projI = a.projectIdx, planI = a.planIdx, ai = a.actionIdx;
-    const onChgAction  = isProj ? `updateProjectAction(${projI},${ai},'action',this.value)`  : isPlan ? `updatePlanningAction(${planI},${ai},'action',this.value)` : `updateAction(${mi},${ai},'action',this.value)`;
-    const onChgStatus  = isProj ? `updateProjectAction(${projI},${ai},'status',this.value)`  : isPlan ? `updatePlanningAction(${planI},${ai},'status',this.value)` : `updateAction(${mi},${ai},'status',this.value)`;
-    const onChgOwner   = isProj ? `updateProjectAction(${projI},${ai},'owner',this.value)`   : isPlan ? `updatePlanningAction(${planI},${ai},'owner',this.value)` : `updateAction(${mi},${ai},'owner',this.value)`;
-    const onChgDue     = isProj ? `updateProjectAction(${projI},${ai},'due',this.value)`     : isPlan ? `updatePlanningAction(${planI},${ai},'due',this.value)` : `updateAction(${mi},${ai},'due',this.value)`;
+    const ii = a.intIdx;
+    const onChgAction  = isProj ? `updateProjectAction(${projI},${ai},'action',this.value)`  : isPlan ? `updatePlanningAction(${planI},${ai},'action',this.value)` : isInt ? `updateIntAction(${mi},${ii},${ai},'action',this.value)` : `updateAction(${mi},${ai},'action',this.value)`;
+    const onChgStatus  = isProj ? `updateProjectAction(${projI},${ai},'status',this.value)`  : isPlan ? `updatePlanningAction(${planI},${ai},'status',this.value)` : isInt ? `updateIntAction(${mi},${ii},${ai},'status',this.value)` : `updateAction(${mi},${ai},'status',this.value)`;
+    const onChgOwner   = isProj ? `updateProjectAction(${projI},${ai},'owner',this.value)`   : isPlan ? `updatePlanningAction(${planI},${ai},'owner',this.value)` : isInt ? `updateIntAction(${mi},${ii},${ai},'owner',this.value)` : `updateAction(${mi},${ai},'owner',this.value)`;
+    const onChgDue     = isProj ? `updateProjectAction(${projI},${ai},'due',this.value)`     : isPlan ? `updatePlanningAction(${planI},${ai},'due',this.value)` : isInt ? `updateIntAction(${mi},${ii},${ai},'due',this.value)` : `updateAction(${mi},${ai},'due',this.value)`;
     const projOpts = projects.length
       ? '<option value="">— None —</option>' + projects.map(p=>`<option value="${escHtml(p.title)}"${p.title===a.linkedProject?' selected':''}>${escHtml(p.title)}</option>`).join('')
       : '<option value="">No projects saved</option>';
@@ -4406,15 +4448,18 @@ function renderActSummary() {
       </div>
       ${a.outcome ? `<div style="margin-top:8px;font-size:12px;color:var(--text-secondary);font-style:italic">Expected outcome: ${escHtml(a.outcome)}</div>` : ''}
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-top:6px">
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
           ${isProj
-            ? `<span style="font-size:11px;font-weight:700;background:var(--blue-pale);color:var(--blue);border-radius:20px;padding:3px 10px;border:1px solid var(--blue-light)">📁 Project</span>`
+            ? `<span style="font-size:11px;font-weight:700;background:var(--blue-pale);color:var(--blue);border-radius:20px;padding:3px 10px;border:1px solid var(--blue-light)">📁 ${escHtml(a.linkedProject||'Project')}</span>`
+            : isInt
+            ? `<span style="font-size:11px;font-weight:700;background:#f0eafa;color:#5b2d8e;border-radius:20px;padding:3px 10px;border:1px solid #d4baf5">🎯 ${escHtml(a._intTitle||a.linkedIntervention||'Intervention')}</span>
+               <span style="font-size:11px;color:var(--text-muted)">${escHtml(a._meetingDate||'')}</span>`
             : isPlan
-            ? `<span style="font-size:11px;font-weight:700;background:#fff7ed;color:#b45309;border-radius:20px;padding:3px 10px;border:1px solid #fcd9a0">📋 Intervention</span>`
-            : `<span style="font-size:11px;font-weight:700;background:var(--blue-pale);color:var(--blue);border-radius:20px;padding:3px 10px;border:1px solid var(--blue-light)">🗓 Meeting Action Item</span>`
+            ? `<span style="font-size:11px;font-weight:700;background:#fff7ed;color:#b45309;border-radius:20px;padding:3px 10px;border:1px solid #fcd9a0">📋 ${escHtml(a.linkedIntervention||'Intervention')}</span>`
+            : `<span style="font-size:11px;font-weight:700;background:var(--blue-pale);color:var(--blue);border-radius:20px;padding:3px 10px;border:1px solid var(--blue-light)">🗓 ${escHtml(a._meetingDate||a.weekLabel||'Meeting')}</span>`
           }
         </div>
-        ${window.isEditMode ? `<button class="btn btn-sm btn-danger" onclick="${isProj ? `deleteProjectAction(${projI},${ai})` : isPlan ? `deletePlanningAction(${planI},${ai})` : `deleteMeetingAction(${mi},${ai})`}" style="font-size:12px;padding:3px 10px">🗑 Remove</button>` : ''}
+        ${window.isEditMode ? `<button class="btn btn-sm btn-danger" onclick="${isProj ? `deleteProjectAction(${projI},${ai})` : isPlan ? `deletePlanningAction(${planI},${ai})` : isInt ? `deleteIntAction(${mi},${ii},${ai})` : `deleteMeetingAction(${mi},${ai})`}" style="font-size:12px;padding:3px 10px">🗑 Remove</button>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -4429,6 +4474,26 @@ function updateAction(meetingIdx, actionIdx, field, value) {
     renderActSummary();
     if (typeof window.saveToSheet === 'function') window.saveToSheet();
   }
+}
+
+function updateIntAction(meetingIdx, intIdx, actionIdx, field, value) {
+  try {
+    const iv = meetings[meetingIdx].interventions[intIdx];
+    if (!iv || !iv.actions[actionIdx]) return;
+    iv.actions[actionIdx][field] = value;
+    persistMeetings();
+    renderLog();
+    if (field === 'status') { renderActSummary(); if (typeof window.saveToSheet === 'function') window.saveToSheet(); }
+  } catch(e) {}
+}
+
+function deleteIntAction(meetingIdx, intIdx, actionIdx) {
+  try {
+    meetings[meetingIdx].interventions[intIdx].actions.splice(actionIdx, 1);
+    persistMeetings();
+    renderActSummary();
+    renderLog();
+  } catch(e) {}
 }
 
 // Handles the "Link to" dropdown — routes to meeting if value starts with "mtg:"
