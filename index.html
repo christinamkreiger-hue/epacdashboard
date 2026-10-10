@@ -3228,7 +3228,7 @@ function saveBarrierUpdates() {
     }
   });
   if (pending.length) {
-    persistProjects();
+    saveProjects();
     persistPlanning();
   }
   document.body._pendingSourceRemovals = [];
@@ -3249,6 +3249,36 @@ function saveBarrierUpdates() {
 /* ── SAVE ── */
 function saveAll() {
   try {
+    // Apply any pending source removals from "Pull In Existing Action"
+    const modal3 = document.getElementById('meeting-edit-modal') || document.querySelector('.modal.active') || document.body;
+    const pending3 = modal3._pendingSourceRemovals || [];
+    pending3.forEach(a => {
+      if (a._fromMtgId) {
+        const srcMtg = meetings.find(mt => mt.id === a._fromMtgId);
+        if (srcMtg && srcMtg.actions) {
+          const ri = srcMtg.actions.findIndex(x => x.action === a.action && x.owner === a.owner);
+          if (ri !== -1) srcMtg.actions.splice(ri, 1);
+        }
+      } else if (a._fromProj) {
+        const srcProj = projects.find(p => p.title === a._fromProj);
+        if (srcProj && srcProj.actions) {
+          const ri = srcProj.actions.findIndex(x => x.action === a.action && x.owner === a.owner);
+          if (ri !== -1) srcProj.actions.splice(ri, 1);
+        }
+      } else if (a._fromPlan) {
+        const srcPlan = planningItems.find(p => (p.title||'Planning') === a._fromPlan);
+        if (srcPlan && srcPlan.actions) {
+          const ri = srcPlan.actions.findIndex(x => x.action === a.action && x.owner === a.owner);
+          if (ri !== -1) srcPlan.actions.splice(ri, 1);
+        }
+      }
+    });
+    if (pending3.length) {
+      saveProjects();
+      persistPlanning();
+    }
+    modal3._pendingSourceRemovals = [];
+
     meetings.push(collectData());
     persistMeetings();
     renderLog();
@@ -3721,27 +3751,12 @@ function meConfirmPickActions() {
   selectedIndices.forEach(idx => {
     const a = allActions[idx];
 
-    // ── Remove from original source so it doesn't appear twice ──
-    if (a._fromMtgId) {
-      const srcMtg = meetings.find(m => m.id === a._fromMtgId);
-      if (srcMtg && srcMtg.actions) {
-        // Match by action text + owner as identity key
-        const rmIdx = srcMtg.actions.findIndex(x => x.action === a.action && x.owner === a.owner);
-        if (rmIdx !== -1) srcMtg.actions.splice(rmIdx, 1);
-      }
-    } else if (a._fromProj) {
-      const srcProj = projects.find(p => p.title === a._fromProj);
-      if (srcProj && srcProj.actions) {
-        const rmIdx = srcProj.actions.findIndex(x => x.action === a.action && x.owner === a.owner);
-        if (rmIdx !== -1) srcProj.actions.splice(rmIdx, 1);
-      }
-    } else if (a._fromPlan) {
-      const srcPlan = planningItems.find(p => (p.title||'Planning') === a._fromPlan);
-      if (srcPlan && srcPlan.actions) {
-        const rmIdx = srcPlan.actions.findIndex(x => x.action === a.action && x.owner === a.owner);
-        if (rmIdx !== -1) srcPlan.actions.splice(rmIdx, 1);
-      }
-    }
+    // ── NOTE: Do NOT splice from the source here. ──
+    // Removals are deferred and applied only when the meeting is saved
+    // (in saveBarrierUpdates / saveNewMeeting), which also calls persistProjects()
+    // and persistPlanning() to commit the change. Splicing here would mutate
+    // in-memory arrays immediately and the next saveToSheet() triggered by any
+    // other operation would push the corrupted state to the cloud.
 
     // ── Add row to the meeting edit modal ──
     const rowIdx = list.children.length;
