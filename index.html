@@ -3231,7 +3231,8 @@ function saveBarrierUpdates() {
     saveProjects();
     persistPlanning();
   }
-  document.body._pendingSourceRemovals = [];
+  modal2._pendingSourceRemovals = [];
+  document.body._pendingSourceRemovals = []; // belt-and-suspenders clear
 
   try {
     renderLog();
@@ -3314,7 +3315,7 @@ window.projects = JSON.parse(localStorage.getItem('epac-projects') || '[]');
 let projects = window.projects;
 
 function saveProjects() {
-  persistProjects(projects);
+  persistProjects(window.projects);
 }
 
 // Track which project cards are in edit mode (new cards start in edit mode)
