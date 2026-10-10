@@ -2792,7 +2792,15 @@ function openModal(idx) {
     <button class="btn" style="margin-top:6px;font-size:13px" onclick="meAddGuest()"><span>+</span> Add guest</button>
   </div>`;
 
-  // ── Interventions
+  // ── Interventions — deduplicate before rendering modal
+  const _dedupedInts = [];
+  { const _seenK = new Set(); (m.interventions||[]).forEach(i => {
+    const isBlank = (i.title||'').trim()==='' && (i.name||'').trim()==='';
+    if (isBlank) { if (!_seenK.has('__blank__')) { _seenK.add('__blank__'); _dedupedInts.push(i); } return; }
+    const k = (i.title||'').trim().toLowerCase()+'||'+(i.name||'').trim().toLowerCase();
+    if (!_seenK.has(k)) { _seenK.add(k); _dedupedInts.push(i); }
+  }); }
+  m.interventions = _dedupedInts;
   html += `<div class="modal-section">
     <div class="modal-section-title">Active interventions</div>
     <div id="me-int-list">
