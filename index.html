@@ -165,7 +165,7 @@
   }
   /* View-only: only restrict action buttons — never hide or dim content */
   body.view-only #save-btn { display: none !important; }
-  body.view-only .btn:not(.nav-tab):not(.modal-close):not(#fix-dup-btn-header):not(#wipe-int-btn) {
+  body.view-only .btn:not(.nav-tab):not(.modal-close) {
     pointer-events: none;
     opacity: .45;
     cursor: not-allowed;
@@ -924,10 +924,6 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
         if (toggleBtn) { toggleBtn.textContent = '🔒 Exit Edit Mode'; toggleBtn.style.background='#e8eef7'; toggleBtn.style.color='#002D72'; toggleBtn.style.borderColor='#002D72'; }
         const cloudBtn = document.getElementById('cloud-save-btn');
         if (cloudBtn) cloudBtn.style.display = '';
-        const fixBtn = document.getElementById('fix-dup-btn-header');
-        if (fixBtn) fixBtn.style.display = '';
-        const wipeBtn = document.getElementById('wipe-int-btn');
-        if (wipeBtn) wipeBtn.style.display = '';
         // Refresh always visible — no change needed
       } else {
         editorEls.forEach(el => { el.disabled = true; el.style.opacity = '.38'; el.style.pointerEvents = 'none'; });
@@ -939,10 +935,6 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
         if (toggleBtn) { toggleBtn.textContent = '✎ Enable Editing'; toggleBtn.style.background='var(--blue-pale)'; toggleBtn.style.color='var(--blue)'; toggleBtn.style.borderColor='var(--blue-light)'; }
         const cloudBtn2 = document.getElementById('cloud-save-btn');
         if (cloudBtn2) cloudBtn2.style.display = 'none';
-        const fixBtn2 = document.getElementById('fix-dup-btn-header');
-        if (fixBtn2) fixBtn2.style.display = 'none';
-        const wipeBtn2 = document.getElementById('wipe-int-btn');
-        if (wipeBtn2) wipeBtn2.style.display = 'none';
         // Refresh always visible — no change needed
       }
       // Re-render so edit/delete buttons appear or disappear
@@ -1113,8 +1105,7 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
       <span id="sync-badge" style="display:none"></span>
       <button id="refresh-btn" onclick="manualPullFromCloud(this)" style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;border:1px solid #b8cce8;background:#e8eef7;color:#002D72;cursor:pointer" title="Refresh data from cloud">↻ Refresh</button>
       <button id="cloud-save-btn" onclick="cloudSaveWithFeedback(this)" style="display:none;font-size:12px;font-weight:700;padding:5px 12px;border-radius:20px;border:1px solid #007749;background:#e6f3ed;color:#007749;cursor:pointer">☁ Save to Cloud</button>
-      <button id="fix-dup-btn-header" onclick="fixAllDuplicates()" style="display:none;font-size:12px;font-weight:700;padding:5px 12px;border-radius:20px;border:1px solid #b45309;background:#fff8e1;color:#b45309;cursor:pointer" title="Remove duplicate interventions from all meetings and sync to cloud">🔧 Fix Duplicates</button>
-      <button id="wipe-int-btn" onclick="wipeAllInterventions()" style="display:none;font-size:12px;font-weight:700;padding:5px 12px;border-radius:20px;border:1px solid #c0392b;background:#fdecea;color:#c0392b;cursor:pointer" title="Wipe ALL interventions from all meetings and cloud — start fresh">🗑 Wipe Interventions</button>
+
       <button id="edit-mode-toggle" class="btn btn-sm" onclick="isEditMode ? setEditMode(false) : showEditModePrompt()" style="font-size:12px;padding:5px 12px;background:var(--blue-pale);color:var(--blue);border-color:var(--blue-light)">✎ Enable Editing</button>
       <button class="btn btn-sm editor-only" onclick="showDataModal()" title="Export or import data" style="display:none;font-size:12px;padding:5px 12px;background:#f5f5f5;color:var(--text-secondary);border-color:var(--border)">⇄ Data Backup</button>
       <span id="edit-mode-badge" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;padding:5px 12px;border-radius:20px;background:#e6f3ed;color:#007749;box-shadow:0 2px 8px rgba(0,0,0,.12)">👁 View Only</span>
