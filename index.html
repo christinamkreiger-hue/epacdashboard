@@ -165,7 +165,7 @@
   }
   /* View-only: only restrict action buttons — never hide or dim content */
   body.view-only #save-btn { display: none !important; }
-  body.view-only .btn:not(.nav-tab):not(.modal-close) {
+  body.view-only .btn:not(.nav-tab):not(.modal-close):not(.int-edit-btn):not(#refresh-btn) {
     pointer-events: none;
     opacity: .45;
     cursor: not-allowed;
@@ -173,7 +173,9 @@
   body.view-only .attendee-row { pointer-events: none; }
   body.view-only .attendee-row:hover { background: var(--surface); border-color: var(--border); }
   body.view-only .log-entry-toggle,
-  body.view-only .nav-tab { pointer-events: auto; cursor: pointer; }
+  body.view-only .nav-tab,
+  body.view-only .int-edit-btn,
+  body.view-only #refresh-btn { pointer-events: auto; cursor: pointer; opacity: 1; }
 
   /* ── NAV TABS ── */
   .nav-bar {
@@ -2050,8 +2052,9 @@ window.persistMeetings = function() {
   try { localStorage.setItem('epac_meetings', JSON.stringify(meetings)); } catch(e) {}
   if (typeof saveToSheet === 'function') saveToSheet();
 };
-window.persistProjects = function(projects) {
-  try { localStorage.setItem('epac-projects', JSON.stringify(projects)); } catch(e) {}
+window.persistProjects = function(proj) {
+  try { localStorage.setItem('epac-projects', JSON.stringify(proj)); } catch(e) {}
+  window.projects = proj; // keep global in sync so renderProjects() reads correctly
   if (typeof saveToSheet === 'function') saveToSheet();
 };
 window._epacProjects = function() {
@@ -4066,11 +4069,9 @@ function renderIntSummary() {
   el.innerHTML = all.slice().reverse().map(i => {
     const assignees = (i.assignedTo || '').split(',').map(s=>s.trim()).filter(Boolean);
     const isPlan = i._src === 'planning';
-    const editBtn = window.isEditMode
-      ? (isPlan
-          ? `<button class="btn btn-sm" style="font-size:12px;padding:3px 10px" onclick="openPlanEditPanel(${i._pi},this)"><span style="font-size:13px">✎</span> Edit</button>`
-          : `<button class="btn btn-sm" style="font-size:12px;padding:3px 10px" onclick="openIntEditPanel(${i._mi},${i._ii},this)"><span style="font-size:13px">✎</span> Edit</button>`)
-      : '';
+    const editBtn = isPlan
+      ? `<button class="btn btn-sm int-edit-btn" style="font-size:12px;padding:3px 10px" onclick="if(!window.isEditMode){showEditModePrompt();return;}openPlanEditPanel(${i._pi},this)"><span style="font-size:13px">✎</span> Edit</button>`
+      : `<button class="btn btn-sm int-edit-btn" style="font-size:12px;padding:3px 10px" onclick="if(!window.isEditMode){showEditModePrompt();return;}openIntEditPanel(${i._mi},${i._ii},this)"><span style="font-size:13px">✎</span> Edit</button>`;
     const dateLabel = '';
     return `
     <div class="card int-summary-card" ${isPlan ? `data-pi="${i._pi}"` : `data-mi="${i._mi}" data-ii="${i._ii}"`} style="margin-bottom:8px;border-left:4px solid ${isPlan ? '#b45309' : 'var(--blue)'};padding:12px 14px">
