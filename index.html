@@ -906,13 +906,7 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
       if (_nm) { _nm.style.display = 'none'; _nm.classList.remove('open'); }
       setEditMode(false);
       setTimeout(function(){ if(typeof markSchedule==='function') markSchedule(); }, 100);
-      // Auto-pull from cloud after a short delay to ensure all JS is ready
-      setTimeout(function() {
-        var btn = document.getElementById('refresh-btn');
-        if (typeof window.manualPullFromCloud === 'function') {
-          window.manualPullFromCloud(btn);
-        }
-      }, 800);
+      // Note: cloud pull happens via session restore path only — not duplicated here
     }
 
     window.setEditMode = function(on) {
@@ -934,6 +928,7 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
         if (fixBtn) fixBtn.style.display = '';
         const wipeBtn = document.getElementById('wipe-int-btn');
         if (wipeBtn) wipeBtn.style.display = '';
+        // Refresh always visible — no change needed
       } else {
         editorEls.forEach(el => { el.disabled = true; el.style.opacity = '.38'; el.style.pointerEvents = 'none'; });
         /* NOTE: we do NOT disable inputs/selects/textareas globally — modals must stay functional */
@@ -948,6 +943,7 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
         if (fixBtn2) fixBtn2.style.display = 'none';
         const wipeBtn2 = document.getElementById('wipe-int-btn');
         if (wipeBtn2) wipeBtn2.style.display = 'none';
+        // Refresh always visible — no change needed
       }
       // Re-render so edit/delete buttons appear or disappear
       if (typeof renderLog === 'function') renderLog();
@@ -1005,18 +1001,23 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
           unlockDashboard();
           if (editOn) setEditMode(true);
           // Trigger sync - use window.load if not yet fired, else defer
-          if (document.readyState === 'complete') {
-            setTimeout(() => {
-              console.log('[EPAC] Restore: readyState complete, calling _loadSheetData, type=', typeof window._loadSheetData);
+          // On restore, pull from cloud but ONLY apply if cloud has data AND
+          // local storage is empty (first load on a new device/browser).
+          // If local already has interventions, skip cloud pull to protect local data.
+          function _safeCloudRestore() {
+            var localMeetings = [];
+            try { localMeetings = JSON.parse(localStorage.getItem('epac_meetings') || '[]'); } catch(e) {}
+            var localIntCount = localMeetings.reduce(function(n,m){ return n + (m.interventions||[]).length; }, 0);
+            // Only pull from cloud if local has NO interventions (truly empty/new session)
+            if (localIntCount === 0) {
               if (typeof window._loadSheetData === 'function') window._loadSheetData();
-            }, 500);
+            }
+            // If local has data, trust it — user can manually hit Refresh if they want cloud
+          }
+          if (document.readyState === 'complete') {
+            setTimeout(_safeCloudRestore, 600);
           } else {
-            window.addEventListener('load', () => {
-              setTimeout(() => {
-                console.log('[EPAC] Restore: load event fired, calling _loadSheetData, type=', typeof window._loadSheetData);
-                if (typeof window._loadSheetData === 'function') window._loadSheetData();
-              }, 500);
-            });
+            window.addEventListener('load', function() { setTimeout(_safeCloudRestore, 600); });
           }
         }
         if (document.readyState === 'loading') {
@@ -1110,7 +1111,7 @@ table.data .hl{background:var(--green-light);font-weight:700;color:var(--green)}
     </div>
     <div class="header-right" style="display:flex;align-items:center;gap:8px">
       <span id="sync-badge" style="display:none"></span>
-      <button id="refresh-btn" onclick="manualPullFromCloud(this)" style="display:none;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;border:1px solid #b8cce8;background:#e8eef7;color:#002D72;cursor:pointer" title="Refresh data from cloud">↻ Refresh</button>
+      <button id="refresh-btn" onclick="manualPullFromCloud(this)" style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;border:1px solid #b8cce8;background:#e8eef7;color:#002D72;cursor:pointer" title="Refresh data from cloud">↻ Refresh</button>
       <button id="cloud-save-btn" onclick="cloudSaveWithFeedback(this)" style="display:none;font-size:12px;font-weight:700;padding:5px 12px;border-radius:20px;border:1px solid #007749;background:#e6f3ed;color:#007749;cursor:pointer">☁ Save to Cloud</button>
       <button id="fix-dup-btn-header" onclick="fixAllDuplicates()" style="display:none;font-size:12px;font-weight:700;padding:5px 12px;border-radius:20px;border:1px solid #b45309;background:#fff8e1;color:#b45309;cursor:pointer" title="Remove duplicate interventions from all meetings and sync to cloud">🔧 Fix Duplicates</button>
       <button id="wipe-int-btn" onclick="wipeAllInterventions()" style="display:none;font-size:12px;font-weight:700;padding:5px 12px;border-radius:20px;border:1px solid #c0392b;background:#fdecea;color:#c0392b;cursor:pointer" title="Wipe ALL interventions from all meetings and cloud — start fresh">🗑 Wipe Interventions</button>
@@ -2163,11 +2164,33 @@ window.cloudSaveWithFeedback = function(btn) {
 window.manualPullFromCloud = function(btn) {
   if (btn) { btn.textContent = '⟳ Loading…'; btn.disabled = true; }
   loadFromSheet(function(data) {
-    const changed = _applyCloudData(data);
+    // Manual refresh always applies cloud data unconditionally — user explicitly asked for it
+    var changed = false;
+    if (data && data.meetings && Array.isArray(data.meetings) && data.meetings.length > 0) {
+      meetings = data.meetings;
+      try { localStorage.setItem('epac_meetings', JSON.stringify(meetings)); } catch(e) {}
+      changed = true;
+    }
+    if (data && data.projects && Array.isArray(data.projects) && data.projects.length > 0) {
+      try { localStorage.setItem('epac-projects', JSON.stringify(data.projects)); window.projects = data.projects; } catch(e) {}
+      changed = true;
+    }
+    if (data && data.planning && Array.isArray(data.planning)) {
+      planningItems = data.planning;
+      try { localStorage.setItem('epac-planning', JSON.stringify(planningItems)); } catch(e) {}
+      changed = true;
+    }
+    if (changed) {
+      try { if (typeof renderLog === 'function') renderLog(); } catch(e) {}
+      try { if (typeof renderIntSummary === 'function') renderIntSummary(); } catch(e) {}
+      try { if (typeof renderActSummary === 'function') renderActSummary(); } catch(e) {}
+      try { if (typeof renderDashboard === 'function') renderDashboard(); } catch(e) {}
+      try { if (typeof renderProjects === 'function') renderProjects(); } catch(e) {}
+    }
     if (btn) {
       btn.textContent = changed ? '✓ Updated!' : '✓ Up to date';
       btn.disabled = false;
-      setTimeout(() => { btn.textContent = '↻ Refresh'; }, 2500);
+      setTimeout(function() { btn.textContent = '↻ Refresh'; }, 2500);
     }
   });
 };
