@@ -3025,45 +3025,58 @@ function wipeAllInterventions() {
   const btn = document.getElementById('wipe-int-btn');
   if (btn) { btn.innerHTML = '⏳ Wiping…'; btn.style.opacity = '.6'; btn.style.pointerEvents = 'none'; }
 
-  // Wipe interventions from every meeting
-  meetings.forEach(m => { m.interventions = []; });
+  // Use setTimeout(0) so the UI updates before we do the work
+  setTimeout(function() {
+    try {
+      // Wipe interventions from every meeting
+      if (Array.isArray(meetings)) {
+        meetings.forEach(function(m) { if (m) m.interventions = []; });
+      }
 
-  // Wipe planningItems entirely
-  planningItems = [];
-  try { localStorage.setItem('epac-planning', JSON.stringify([])); } catch(e) {}
+      // Wipe planningItems entirely
+      try { planningItems = []; } catch(e) {}
+      try { localStorage.setItem('epac-planning', JSON.stringify([])); } catch(e) {}
 
-  // Save meetings to localStorage
-  try { localStorage.setItem('epac_meetings', JSON.stringify(meetings)); } catch(e) {}
+      // Save meetings to localStorage
+      try { localStorage.setItem('epac_meetings', JSON.stringify(meetings)); } catch(e) {}
 
-  // Push to cloud
-  if (typeof saveToSheet === 'function') saveToSheet();
+      // Re-render everything — each wrapped individually so one failure doesn't stop the rest
+      try { if (typeof renderLog === 'function') renderLog(); } catch(e) {}
+      try { if (typeof renderIntSummary === 'function') renderIntSummary(); } catch(e) {}
+      try { if (typeof renderActSummary === 'function') renderActSummary(); } catch(e) {}
 
-  // Re-render everything
-  if (typeof renderLog === 'function') renderLog();
-  if (typeof renderIntSummary === 'function') renderIntSummary();
-  if (typeof renderActSummary === 'function') renderActSummary();
+      // Close modal if open
+      try {
+        if (typeof currentModalMeetingIndex === 'number' && currentModalMeetingIndex !== null) {
+          if (typeof closeModal === 'function') closeModal();
+        }
+      } catch(e) {}
 
-  // Close modal if open
-  if (typeof currentModalMeetingIndex === 'number' && currentModalMeetingIndex !== null) {
-    if (typeof closeModal === 'function') closeModal();
-  }
+      // Push to cloud completely fire-and-forget — never blocks UI
+      setTimeout(function() {
+        try { if (typeof saveToSheet === 'function') saveToSheet(); } catch(e) {}
+      }, 100);
 
-  setTimeout(() => {
+    } catch(e) {
+      console.error('wipeAllInterventions error:', e);
+    }
+
+    // Always reset button — even if something above threw
     if (btn) {
-      btn.innerHTML = '✓ All interventions wiped — start fresh!';
+      btn.innerHTML = '✓ Wiped! Start fresh.';
       btn.style.background = '#007749';
       btn.style.color = '#fff';
       btn.style.borderColor = '#007749';
       btn.style.opacity = '1';
       btn.style.pointerEvents = '';
-      setTimeout(() => {
+      setTimeout(function() {
         btn.innerHTML = '🗑 Wipe Interventions';
         btn.style.background = '';
         btn.style.color = '';
         btn.style.borderColor = '';
       }, 5000);
     }
-  }, 1000);
+  }, 50);
 }
 
 function saveBarrierUpdates() {
