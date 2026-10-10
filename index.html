@@ -2941,6 +2941,8 @@ document.addEventListener('click', function(e) {
 // ── One-time cleanup: deduplicate all interventions and push clean data to cloud ──
 function fixAllDuplicates() {
   let totalRemoved = 0;
+
+  // Pass 1: within-meeting dedup (blanks and exact duplicates)
   meetings.forEach(m => {
     const before = (m.interventions||[]).length;
     if (Array.isArray(m.interventions)) {
@@ -2949,12 +2951,35 @@ function fixAllDuplicates() {
       m.interventions = m.interventions.filter(i => {
         const isBlank = (i.title||'').trim() === '' && (i.name||'').trim() === '';
         if (isBlank) { blankCount++; return blankCount <= 1; }
-        const key = (i.title||'').trim() + '||' + (i.name||'').trim();
+        const key = (i.title||'').trim().toLowerCase() + '||' + (i.name||'').trim().toLowerCase();
         if (seenInt.has(key)) return false;
         seenInt.add(key);
         return true;
       });
     }
+    totalRemoved += before - (m.interventions||[]).length;
+  });
+
+  // Pass 2: cross-meeting dedup — keep intervention only in the LATEST meeting that has it
+  // (walk meetings in reverse so the latest occurrence "wins" and earlier ones get removed)
+  const globalSeen = new Set();
+  for (let mi = meetings.length - 1; mi >= 0; mi--) {
+    const m = meetings[mi];
+    if (!Array.isArray(m.interventions)) continue;
+    const before = m.interventions.length;
+    m.interventions = m.interventions.filter(i => {
+      const isBlank = (i.title||'').trim() === '' && (i.name||'').trim() === '';
+      if (isBlank) return true; // blanks are per-meeting, don't cross-dedup
+      const key = (i.title||'').trim().toLowerCase() + '||' + (i.name||'').trim().toLowerCase();
+      if (globalSeen.has(key)) return false; // already kept in a later meeting
+      globalSeen.add(key);
+      return true;
+    });
+    totalRemoved += before - m.interventions.length;
+  }
+
+  // Pass 3: deduplicate actions within each meeting
+  meetings.forEach(m => {
     if (Array.isArray(m.actions)) {
       m.actions = m.actions.filter(a => !(a.linkedIntervention && a.linkedIntervention.trim()));
       const seen = new Set();
@@ -2965,8 +2990,8 @@ function fixAllDuplicates() {
         return true;
       });
     }
-    totalRemoved += before - (m.interventions||[]).length;
   });
+
   // Persist clean data to localStorage AND push to cloud
   try { localStorage.setItem('epac_meetings', JSON.stringify(meetings)); } catch(e) {}
   if (typeof saveToSheet === 'function') saveToSheet();
@@ -3908,9 +3933,22 @@ function renderIntSummary() {
   const lbl = document.getElementById('int-count-label');
   if (!el) return;
   const all = [];
+  // Collect all meeting interventions, then deduplicate across meetings by title+name key
+  // keeping only the most recent occurrence (highest meeting index) of each unique intervention
+  const seenIntKeys = new Map(); // key -> index in all[]
   meetings.forEach((m, mi) => {
     (m.interventions || []).forEach((i, ii) => {
-      if (i.name && i.name.trim()) all.push({ ...i, date: m.date, _mi: mi, _ii: ii, _src: 'meeting' });
+      if (i.name && i.name.trim()) {
+        const key = (i.title||'').trim().toLowerCase() + '||' + (i.name||'').trim().toLowerCase();
+        const entry = { ...i, date: m.date, _mi: mi, _ii: ii, _src: 'meeting' };
+        if (seenIntKeys.has(key)) {
+          // Replace with this newer meeting's version
+          all[seenIntKeys.get(key)] = entry;
+        } else {
+          seenIntKeys.set(key, all.length);
+          all.push(entry);
+        }
+      }
     });
   });
   planningItems.forEach((p, pi) => {
