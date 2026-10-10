@@ -3415,8 +3415,8 @@ function renderProjects() {
           <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-secondary);margin-bottom:6px">Action Items</div>
           <div style="display:grid;gap:6px">
             ${(p.actions||[]).filter(a=>a.action&&a.action.trim()).map((a,ai)=>{
-              const sc2 = a.status==='done'?'var(--green)':a.status==='hold'?'var(--gold)':'var(--blue)';
-              const sl2 = a.status==='done'?'Complete':a.status==='hold'?'On Hold':'In Progress';
+              const sc2 = a.status==='done'?'var(--green)':a.status==='hold'?'var(--gold)':a.status==='planning'?'#b45309':'var(--blue)';
+              const sl2 = a.status==='done'?'Complete':a.status==='hold'?'On Hold':a.status==='planning'?'Planning':'In Progress';
               return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--surface);border:1px solid var(--border);border-left:3px solid ${sc2};border-radius:0 6px 6px 0;flex-wrap:wrap">
                 <div style="flex:1;min-width:140px;font-size:13px;font-weight:600;color:var(--text-primary)">${escHtml(a.action)}</div>
                 ${a.owner?`<span style="font-size:11px;color:var(--text-secondary)">👤 ${escHtml(a.owner)}</span>`:''}
@@ -4099,6 +4099,21 @@ function renderIntSummary() {
           ${i.priority ? `<span style="font-size:11px;font-weight:700;background:#eef7f2;color:#007749;border-radius:20px;padding:3px 10px;border:1px solid #b6deca">★ ${i.priority}</span>` : ''}
           ${i.hasBarrier === 'yes' ? '<span class="log-int-barrier-tag">⚑ Barrier</span>' : ''}
         </div>
+        ${(i.actions||[]).filter(a=>a.action&&a.action.trim()).length ? `<div style="margin-top:10px;border-top:1px dashed var(--border);padding-top:8px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-secondary);margin-bottom:6px">Action Items</div>
+          <div style="display:grid;gap:5px">
+            ${(i.actions||[]).filter(a=>a.action&&a.action.trim()).map(a=>{
+              const ac = a.status==='done'?'var(--green)':a.status==='hold'?'var(--gold)':a.status==='planning'?'#b45309':'var(--blue)';
+              const al = a.status==='done'?'Complete':a.status==='hold'?'On Hold':a.status==='planning'?'Planning':'In Progress';
+              return `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--surface);border:1px solid var(--border);border-left:3px solid ${ac};border-radius:0 6px 6px 0;flex-wrap:wrap">
+                <div style="flex:1;min-width:120px;font-size:13px;font-weight:600;color:var(--text-primary)">${escHtml(a.action)}</div>
+                ${a.owner?`<span style="font-size:11px;color:var(--text-secondary)">👤 ${escHtml(a.owner)}</span>`:''}
+                ${a.due?`<span style="font-size:11px;color:var(--text-secondary)">📅 ${escHtml(a.due)}</span>`:''}
+                <span style="font-size:11px;font-weight:700;color:${ac}">${al}</span>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>` : ''}
       </div>
       <div class="int-edit-mode" style="display:none"></div>
     </div>`;
