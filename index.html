@@ -4604,8 +4604,8 @@ function renderActSummary() {
                     .filter((v,i,arr) => arr.indexOf(v)===i);
                   const projTitles = projects.map(p => p.title).filter(Boolean);
                   const mtgs = meetings.slice().reverse();
-                  let opts = '<optgroup label="Intervention">' + intTitles.map(t=>`<option value="${escHtml(t)}"${a.linkedIntervention===t?' selected':''}>${escHtml(t)}</option>`).join('') + '</optgroup>';
-                  opts += '<optgroup label="Projects">' + projTitles.map(t=>`<option value="${escHtml(t)}"${a.linkedIntervention===t?' selected':''}>${escHtml(t)}</option>`).join('') + '</optgroup>';
+                  let opts = '<optgroup label="Intervention">' + intTitles.map(t=>`<option value="int:${escHtml(t)}"${a.linkedIntervention===t?' selected':''}>${escHtml(t)}</option>`).join('') + '</optgroup>';
+                  opts += '<optgroup label="Projects">' + projTitles.map(t=>`<option value="proj:${escHtml(t)}"${a.linkedProject===t?' selected':''}>${escHtml(t)}</option>`).join('') + '</optgroup>';
                   opts += '<optgroup label="Meeting">' + mtgs.map(m=>`<option value="mtg:${escHtml(m.id)}"${a._linkedMeetingId===m.id?' selected':''}>${escHtml(m.date)}</option>`).join('') + '</optgroup>';
                   return opts;
                 })()}
@@ -4694,12 +4694,24 @@ function linkToChanged(srcType, srcIdx, actionIdx, value) {
     persistMeetings();
     renderActSummary();
     renderLog();
-  } else {
-    // Regular intervention/project link
+  } else if (value.startsWith('proj:')) {
+    const projTitle = value.slice(5);
     if (srcType === 'plan') {
-      updatePlanningAction(srcIdx, actionIdx, 'linkedIntervention', value);
+      updatePlanningAction(srcIdx, actionIdx, 'linkedProject', projTitle);
+      updatePlanningAction(srcIdx, actionIdx, 'linkedIntervention', '');
     } else {
-      updateAction(srcIdx, actionIdx, 'linkedIntervention', value);
+      updateAction(srcIdx, actionIdx, 'linkedProject', projTitle);
+      updateAction(srcIdx, actionIdx, 'linkedIntervention', '');
+    }
+  } else {
+    // Intervention link (value may have "int:" prefix or be a bare title for backward compat)
+    const intTitle = value.startsWith('int:') ? value.slice(4) : value;
+    if (srcType === 'plan') {
+      updatePlanningAction(srcIdx, actionIdx, 'linkedIntervention', intTitle);
+      updatePlanningAction(srcIdx, actionIdx, 'linkedProject', '');
+    } else {
+      updateAction(srcIdx, actionIdx, 'linkedIntervention', intTitle);
+      updateAction(srcIdx, actionIdx, 'linkedProject', '');
     }
   }
 }
