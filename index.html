@@ -2739,7 +2739,7 @@ function renderLog() {
             <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;flex-shrink:0">
               ${(()=>{const s=i.status||'planning';if(s==='progress')return'<span style="font-size:10px;font-weight:700;background:#e8eef7;color:#002D72;border-radius:20px;padding:2px 7px;border:1px solid #c5d3e8">🔄 In Progress</span>';if(s==='completed')return'<span style="font-size:10px;font-weight:700;background:#eef7f2;color:#007749;border-radius:20px;padding:2px 7px;border:1px solid #b6deca">✅ Completed</span>';return'<span style="font-size:10px;font-weight:700;background:#fff8e1;color:#b45309;border-radius:20px;padding:2px 7px;border:1px solid #fcd34d">📋 Planning</span>';})()}
               ${normMetrics(i.metrics||i.metric).map(m=>`<span style="font-size:10px;font-weight:700;background:#e8eef7;color:#002D72;border-radius:20px;padding:2px 7px;border:1px solid #c5d3e8">📊 ${escHtml(m)}</span>`).join('')}
-              ${i.priority?`<span style="font-size:10px;font-weight:700;background:#eef7f2;color:#007749;border-radius:20px;padding:2px 7px;border:1px solid #b6deca">★ ${i.priority}</span>`:''}
+              ${i.priority?`<span style="font-size:11px;font-weight:700;background:#eef7f2;color:#007749;border-radius:20px;padding:3px 10px;border:1px solid #b6deca">★ ${escHtml(i.priority)}</span>`:''}
               ${i.hasBarrier==='yes'?`<span class="log-int-barrier-tag">⚑ Barrier</span>`:''}
             </div>
           </div>`;}).join('')}
@@ -3397,7 +3397,7 @@ function saveAll() {
 const PROJECT_STATUS = ['In Progress','Planning','On Hold','Complete'];
 const STATUS_COLORS = {
   'In Progress': { bg:'#e8eef7', color:'#002D72' },
-  'Planning':    { bg:'#e6f3ed', color:'#007749' },
+  'Planning':    { bg:'#fff8e1', color:'#b45309' },
   'On Hold':     { bg:'#f7f1e8', color:'#8a6020' },
   'Complete':    { bg:'#eef7ee', color:'#2a7a2a' }
 };
@@ -3531,7 +3531,7 @@ function renderProjects() {
           <div style="font-size:13px;color:var(--text-primary);line-height:1.5">${escHtml(p.notes)}</div>
         </div>` : ''}
         ${p.priority ? `<div style="margin-top:8px">
-          <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--green);background:#eef7f2;border:1px solid #b6deca;border-radius:20px;padding:3px 10px">★ ${escHtml(p.priority)}</span>
+          <span style="font-size:11px;font-weight:700;background:#eef7f2;color:#007749;border-radius:20px;padding:3px 10px;border:1px solid #b6deca">★ ${escHtml(p.priority)}</span>
         </div>` : ''}
         ${(p.actions||[]).filter(a=>a.action&&a.action.trim()).length ? `<div style="margin-top:12px;border-top:1px dashed var(--border);padding-top:10px">
           <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-secondary);margin-bottom:6px">Action Items</div>
@@ -4205,7 +4205,7 @@ function renderIntSummary() {
         </div>` : ''}
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center">
           ${normMetrics(i.metrics||i.metric).map(m=>`<span style="font-size:11px;font-weight:700;background:#e8eef7;color:#002D72;border-radius:20px;padding:3px 10px;border:1px solid #c5d3e8">📊 ${escHtml(m)}</span>`).join('')}
-          ${i.priority ? `<span style="font-size:11px;font-weight:700;background:#eef7f2;color:#007749;border-radius:20px;padding:3px 10px;border:1px solid #b6deca">★ ${i.priority}</span>` : ''}
+          ${i.priority ? `<span style="font-size:11px;font-weight:700;background:#eef7f2;color:#007749;border-radius:20px;padding:3px 10px;border:1px solid #b6deca">★ ${escHtml(i.priority)}</span>` : ''}
           ${i.hasBarrier === 'yes' ? '<span class="log-int-barrier-tag">⚑ Barrier</span>' : ''}
         </div>
         ${(i.actions||[]).filter(a=>a.action&&a.action.trim()).length ? `<div style="margin-top:10px;border-top:1px dashed var(--border);padding-top:8px">
