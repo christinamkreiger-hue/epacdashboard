@@ -2629,7 +2629,7 @@ function renderLog() {
     c.innerHTML = '<div class="empty-state"><span>📋</span>No meetings saved yet. Click <strong>Create New Meeting</strong> to get started.</div>';
     return;
   }
-  c.innerHTML = meetings.slice().reverse().map((m, revIdx) => {
+  c.innerHTML = meetings.slice().sort((a,b) => (a.date||'') < (b.date||'') ? -1 : (a.date||'') > (b.date||'') ? 1 : 0).map((m, revIdx) => {
     const realIdx = meetings.length - 1 - revIdx;
     const openActions = (m.actions||[]).filter(a => a.action && a.action.trim() && (a.status === 'progress' || a.status === 'hold' || !a.status));
     const allActions  = (m.actions||[]).filter(a => a.action && a.action.trim());
